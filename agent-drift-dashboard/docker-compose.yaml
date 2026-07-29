@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # 1. ClickHouse Columnar Database
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: clickhouse-server
+    ports:
+      - "8123:8123"   # HTTP interface (for FastAPI & DuckDB queries)
+      - "9000:9000"   # Native TCP protocol
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./clickhouse-init:/docker-entrypoint-initdb.d
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. OpenTelemetry Collector (Contrib Distribution)
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver (used by LangGraph / CrewAI OTel exporter)
+      - "4318:4318"   # OTLP HTTP receiver
+      - "13133:13133" # Health check extension port
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+
+  # 3. FastAPI Engine (Text-to-SQL + DuckDB Math Processing)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: drift-dashboard-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - CLICKHOUSE_HOST=clickhouse
+      - CLICKHOUSE_PORT=8123
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+
+  # 4. Next.js Dashboard Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: drift-dashboard-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+
+volumes:
+  clickhouse_data:
