@@ -1,7 +1,7 @@
 # Agentic AI Observability & Mathematical Drift Platform
 ## Architecture Specification & Architecture Decision Records (ADR)
 
-**Author:** Sendil - Principal Solution Architect  
+**Author:** Principal Solution Architect  
 **Version:** 1.0.0  
 **Date:** July 2026  
 **Target Stack:** LangGraph, CrewAI, OpenTelemetry, ClickHouse, DuckDB, FastAPI, Next.js  
@@ -118,3 +118,118 @@ The platform utilizes a decoupled, layered microservices architecture designed f
 |                                          |  (Interactive Controls)   |                            |
 |                                          +---------------------------+                            |
 +---------------------------------------------------------------------------------------------------+
+```
+
+### 2.1 Component Layer Responsibilities
+
+| Layer | Technology | Primary Responsibility |
+| :--- | :--- | :--- |
+| **Agent Orchestration** | LangGraph, CrewAI, Python | Executes multi-step agent graphs, tool calling, and RAG retrieval auto-instrumented with OpenInference OTel SDKs. |
+| **Telemetry Ingestion** | OTel Collector Contrib | Receives OTLP gRPC/HTTP span streams, batches records, and executes high-speed bulk inserts into ClickHouse. |
+| **OLAP Data Lake** | ClickHouse DB | Stores high-cardinality raw trace spans, vector embeddings, token counts, and computed daily drift metrics in MergeTree tables. |
+| **Batch Math Engine** | DuckDB, NumPy, SciPy | Executes nightly vector linear algebra jobs ($D_M$, $H_{\text{amb}}$, $V_{\text{traj}}$) across daily trace datasets. |
+| **API & Prompt Engine** | FastAPI, LangChain/Instructor | Translates natural language queries into ClickHouse SQL, computes executive narrative summaries, and handles metric tuning requests. |
+| **Presentation Layer** | Next.js, Tailwind, Recharts | Serves executive dashboards, live parameter tuning sliders, LaTeX math explainers, and daily automated prescription cards. |
+
+---
+
+## 3. Mathematical Drift Formulations
+
+To evaluate agent executions deterministically without incurring LLM API costs, the system computes three mathematical indices per execution trace:
+
+### 3.1 Trajectory Vector Distance ($D_M$)
+Measures structural and semantic deviation from a "Golden Baseline" cluster of successful executions. The trajectory vector $\mathbf{x} = [\mathbf{e}_{\text{out}} \,\|\, \mathbf{w}_{\text{path}}]$ concatenates the response text embedding $\mathbf{e}_{\text{out}} \in \mathbb{R}^d$ and normalized tool call weights $\mathbf{w}_{\text{path}} \in \mathbb{R}^m$.
+
+$$D_M(\mathbf{x}) = \sqrt{(\mathbf{x} - \boldsymbol{\mu}_g)^T \boldsymbol{\Sigma}_g^{-1} (\mathbf{x} - \boldsymbol{\mu}_g)}$$
+
+*   Where $\boldsymbol{\mu}_g$ is the mean vector of the Golden Baseline cluster and $\boldsymbol{\Sigma}_g^{-1}$ is the inverse covariance matrix with pseudo-inverse regularization ($+ 10^{-6}\mathbf{I}$) to handle singularity.
+*   **Drift Flag Rule:** An execution is flagged as drifted if $D_M(\mathbf{x}) > \mu_D + k \cdot \sigma_D$.
+
+### 3.2 User Input Ambiguity & Context Entropy ($H_{\text{amb}}$)
+Isolates whether an execution drift was caused by user prompt ambiguity or internal agent logic errors:
+
+$$H_{\text{amb}}(Q) = -\sum_{i=1}^{N} P(x_i) \log_2 P(x_i) + \alpha \cdot \left(1 - \frac{1}{m}\sum_{j=1}^{m} \cos(\mathbf{q}, \mathbf{c}_j)\right)$$
+
+*   Where $P(x_i)$ is token frequency distribution over input query $Q$, $\mathbf{q}$ is the query vector embedding, $\mathbf{c}_j$ are centroid vectors of standard intent clusters, and $\alpha$ is a scaling factor.
+*   **Root Cause Rule:** If $D_M(\mathbf{x})$ is high **AND** $H_{\text{amb}}(Q) > H_{\text{threshold}}$, the root cause is tagged as **User Prompt Ambiguity**. If $H_{\text{amb}}(Q)$ is low, it is tagged as an **Agent Model Failure**.
+
+### 3.3 Trajectory Volatility Index ($V_{\text{traj}}$)
+Quantifies resource churn, infinite tool loops, and retry penalties across the execution graph lifecycle:
+
+$$V_{\text{traj}} = w_s \cdot \left(\frac{N_{\text{steps}}}{\bar{N}}\right)^2 + w_t \cdot \left(\frac{T_{\text{used}}}{\bar{T}}\right) + w_r \cdot \sum_{i=1}^{M} R_i^2$$
+
+*   Where $N_{\text{steps}}$ is the executed node count, $T_{\text{used}}$ is total token consumption, $\bar{N}$ and $\bar{T}$ are baseline averages, and $R_i$ is the retry count for tool $i$.
+
+---
+
+## 4. ClickHouse Data Lake Schema Specification
+
+The database implementation utilizes ClickHouse's `MergeTree` engine optimized for time-series range scans and bulk vector array processing.
+
+```sql
+-- 1. Raw OpenTelemetry Spans Table (Ingested via OTel Collector)
+CREATE TABLE IF NOT EXISTS default.otel_agent_spans
+(
+    Timestamp DateTime64(6) CODEC(DoubleDelta, ZSTD),
+    TraceId String CODEC(ZSTD),
+    SpanId String CODEC(ZSTD),
+    ParentSpanId String CODEC(ZSTD),
+    SpanName LowCardinality(String),
+    ServiceLowCardinality LowCardinality(String),
+    
+    -- OpenInference Agent Attributes
+    GraphNodeName String,
+    AgentRole LowCardinality(String),
+    ToolName LowCardinality(String),
+    InputPrompt String,
+    OutputText String,
+    
+    -- Token & Execution Metrics
+    PromptTokens UInt32,
+    CompletionTokens UInt32,
+    TotalTokens UInt32,
+    ExecutionDurationMs Float64,
+    RetryCount UInt8,
+    
+    -- Output Vector Embedding Array (384-dim or 1536-dim)
+    ResponseEmbedding Array(Float32)
+)
+ENGINE = MergeTree()
+PRIMARY KEY (ServiceLowCardinality, SpanName)
+ORDER BY (ServiceLowCardinality, SpanName, Timestamp, TraceId);
+
+-- 2. Computed Mathematical Drift Metrics Table
+CREATE TABLE IF NOT EXISTS default.agent_drift_metrics
+(
+    ExecutionDate Date,
+    TraceId String,
+    UserPrompt String,
+    
+    -- Calculated Metrics
+    MahalanobisDistance Float64,  -- D_M
+    InputAmbiguityScore Float64,  -- H_amb
+    TrajectoryVolatility Float64,  -- V_traj
+    
+    -- Classification & Waste Tracking
+    IsDrifted UInt8,              -- 1 if drifted, 0 if compliant
+    RootCauseCategory Enum8(
+        'Compliant' = 0, 
+        'UserPromptAmbiguity' = 1, 
+        'AgentLogicFailure' = 2, 
+        'ToolTimeout' = 3
+    ),
+    EstimatedTokenWaste UInt32,
+    CalculatedAt DateTime DEFAULT now()
+)
+ENGINE = MergeTree()
+PRIMARY KEY (ExecutionDate)
+RootCauseCategory, TraceId);
+```
+
+---
+
+## 5. Non-Functional Requirements & Security Considerations
+
+*   **Ingestion Throughput:** The OTel Collector and ClickHouse setup supports over 25,000 span writes/second with batch processing enabled.
+*   **PII & Payload Redaction:** Regex and Named Entity Recognition (NER) processors run in the OTel Collector pipeline to redact sensitive credentials, credit card numbers, and PII before writing spans to ClickHouse.
+*   **Data Retention & Lifecycle:** Raw span payloads are retained for 30 days via ClickHouse TTL rules (`TTL Timestamp + INTERVAL 30 DAY`), while aggregated mathematical drift metrics are retained indefinitely for long-term trend analysis.
