@@ -1,7 +1,7 @@
 # Agentic AI Observability & Mathematical Drift Platform
 ## Architecture Specification & Architecture Decision Records (ADR)
 
-**Author:** Principal Solution Architect  
+**Author:** Sendil (Principal Solution Architect)  
 **Version:** 1.0.0  
 **Date:** July 2026  
 **Target Stack:** LangGraph, CrewAI, OpenTelemetry, ClickHouse, DuckDB, FastAPI, Next.js  
@@ -148,7 +148,8 @@ $$D_M(\mathbf{x}) = \sqrt{(\mathbf{x} - oldsymbol{\mu}_g)^T oldsymbol{\Sigma}_
 ### 3.2 User Input Ambiguity & Context Entropy ($H_{	ext{amb}}$)
 Isolates whether an execution drift was caused by user prompt ambiguity or internal agent logic errors:
 
-$$H_{	ext{amb}}(Q) = -\sum_{i=1}^{N} P(x_i) \log_2 P(x_i) + lpha \cdot \left(1 - rac{1}{m}\sum_{j=1}^{m} \cos(\mathbf{q}, \mathbf{c}_j)ight)$$
+$$H_{	ext{amb}}(Q) = -\sum_{i=1}^{N} P(x_i) \log_2 P(x_i) + lpha \cdot \left(1 - rac{1}{m}\sum_{j=1}^{m} \cos(\mathbf{q}, \mathbf{c}_j)
+ight)$$
 
 *   Where $P(x_i)$ is token frequency distribution over input query $Q$, $\mathbf{q}$ is the query vector embedding, $\mathbf{c}_j$ are centroid vectors of standard intent clusters, and $lpha$ is a scaling factor.
 *   **Root Cause Rule:** If $D_M(\mathbf{x})$ is high **AND** $H_{	ext{amb}}(Q) > H_{	ext{threshold}}$, the root cause is tagged as **User Prompt Ambiguity**. If $H_{	ext{amb}}(Q)$ is low, it is tagged as an **Agent Model Failure**.
@@ -156,7 +157,9 @@ $$H_{	ext{amb}}(Q) = -\sum_{i=1}^{N} P(x_i) \log_2 P(x_i) + lpha \cdot \left(1 
 ### 3.3 Trajectory Volatility Index ($V_{	ext{traj}}$)
 Quantifies resource churn, infinite tool loops, and retry penalties across the execution graph lifecycle:
 
-$$V_{	ext{traj}} = w_s \cdot \left(rac{N_{	ext{steps}}}{ar{N}}ight)^2 + w_t \cdot \left(rac{T_{	ext{used}}}{ar{T}}ight) + w_r \cdot \sum_{i=1}^{M} R_i^2$$
+$$V_{	ext{traj}} = w_s \cdot \left(rac{N_{	ext{steps}}}{ar{N}}
+ight)^2 + w_t \cdot \left(rac{T_{	ext{used}}}{ar{T}}
+ight) + w_r \cdot \sum_{i=1}^{M} R_i^2$$
 
 *   Where $N_{	ext{steps}}$ is the executed node count, $T_{	ext{used}}$ is total token consumption, $ar{N}$ and $ar{T}$ are baseline averages, and $R_i$ is the retry count for tool $i$.
 
