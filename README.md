@@ -1,5 +1,5 @@
 
-# Agentic AI Mathematical Drift Observability Platform
+# Agent Lens — Agentic AI Mathematical Drift Observability
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![OpenTelemetry](https://img.shields.io/badge/OpenTelemetry-Enabled-blue.svg)](https://opentelemetry.io/)
@@ -7,6 +7,14 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg)](https://fastapi.tiangolo.com/)
 
 An enterprise-grade, open-source observability platform for **LangGraph** and **CrewAI** agentic AI workflows. This platform measures non-deterministic agent behavioral drift, tool loop volatility, and context ambiguity using high-dimensional vector linear algebra—**without incurring expensive real-time LLM-as-a-judge API costs**.
+
+> **Project status:** architecture and implementation scaffold. The current repository is not yet a complete runnable application; the canonical build plan and production architecture are documented below.
+
+## Project Blueprint
+
+- [Product and technical architecture](docs/agentlens-architecture.md)
+- [Phased development roadmap and task list](docs/agentlens-development-roadmap.md)
+- [Original architecture draft](agent-drift-dashboard/architecture.md)
 
 ---
 
