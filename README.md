@@ -16,6 +16,14 @@ An enterprise-grade, open-source observability platform for **LangGraph** and **
 - [Phased development roadmap and task list](docs/agentlens-development-roadmap.md)
 - [Original architecture draft](agent-drift-dashboard/architecture.md)
 
+## Project Memory
+
+- [Memory index](memory/README.md)
+- [Completed actions](memory/completed-actions.md)
+- [Current status](memory/current-status.md)
+- [Next plans](memory/next-plans.md)
+- [Locked decisions](memory/decisions.md)
+
 ---
 
 ## 🌟 Key Features
