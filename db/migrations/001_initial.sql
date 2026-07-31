@@ -10,6 +10,7 @@ ORDER BY version;
 
 CREATE TABLE IF NOT EXISTS agentlens.spans
 (
+    schema_version LowCardinality(String),
     event_id String,
     tenant_id LowCardinality(String),
     cluster_id LowCardinality(String),
