@@ -30,10 +30,11 @@ services:
       - ../../db/migrations:/migrations:ro
     entrypoint: ["/bin/sh", "-ec"]
     command:
-      - >-
-        clickhouse-client --host clickhouse --user "$$CLICKHOUSE_USERNAME"
-        --password "$$CLICKHOUSE_PASSWORD" --multiquery
-        < /migrations/001_initial.sql
+      - |
+        for migration in /migrations/*.sql; do
+          clickhouse-client --host clickhouse --user "$$CLICKHOUSE_USERNAME" \
+            --password "$$CLICKHOUSE_PASSWORD" --multiquery < "$${migration}"
+        done
     restart: "no"
 
   redpanda:

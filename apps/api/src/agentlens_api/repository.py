@@ -215,24 +215,40 @@ class ClickHouseRepository:
             password=settings.clickhouse_password.get_secret_value(),
             database=settings.clickhouse_database,
         )
+        # clickhouse-connect reuses one HTTP session and rejects overlapping
+        # operations on it. Serialize access while keeping blocking I/O off the
+        # event loop; API replicas provide horizontal query concurrency.
+        self._operation_lock = asyncio.Lock()
 
     async def ready(self) -> bool:
-        return bool(await asyncio.to_thread(self._client.ping))
+        async with self._operation_lock:
+            return bool(await asyncio.to_thread(self._client.ping))
 
     async def _query(
         self, sql: str, parameters: dict[str, Any] | None = None
     ) -> list[dict[str, Any]]:
-        result = await asyncio.to_thread(
-            self._client.query,
-            sql,
-            parameters=parameters or {},
-            settings={
-                "max_execution_time": self._settings.api_query_timeout_seconds,
-                "max_result_rows": self._settings.api_max_result_rows,
-                "result_overflow_mode": "throw",
-            },
-        )
+        async with self._operation_lock:
+            result = await asyncio.to_thread(
+                self._client.query,
+                sql,
+                parameters=parameters or {},
+                settings={
+                    "max_execution_time": self._settings.api_query_timeout_seconds,
+                    "max_result_rows": self._settings.api_max_result_rows,
+                    "result_overflow_mode": "throw",
+                },
+            )
         return [dict(zip(result.column_names, row, strict=True)) for row in result.result_rows]
+
+    async def _insert(self, table: str, row: dict[str, Any]) -> None:
+        columns = list(row)
+        async with self._operation_lock:
+            await asyncio.to_thread(
+                self._client.insert,
+                table,
+                [[row[column] for column in columns]],
+                column_names=columns,
+            )
 
     async def list_executions(
         self, *, tenant_id: str, limit: int, cursor: str | None, filters: dict[str, Any]
@@ -297,13 +313,7 @@ class ClickHouseRepository:
         row = rows[0]
         row["state"] = state
         row["updated_at"] = datetime.now(UTC)
-        columns = list(row)
-        await asyncio.to_thread(
-            self._client.insert,
-            "findings",
-            [[row[column] for column in columns]],
-            column_names=columns,
-        )
+        await self._insert("findings", row)
         return row
 
     async def summary(self, *, tenant_id: str) -> dict[str, Any]:
@@ -377,13 +387,7 @@ class ClickHouseRepository:
             "created_at": datetime.now(UTC),
             "updated_at": datetime.now(UTC),
         }
-        columns = list(record)
-        await asyncio.to_thread(
-            self._client.insert,
-            "baseline_imports",
-            [[record[column] for column in columns]],
-            column_names=columns,
-        )
+        await self._insert("baseline_imports", record)
         return record
 
     async def list_baselines(self, *, tenant_id: str) -> list[dict[str, Any]]:
@@ -432,13 +436,7 @@ class ClickHouseRepository:
         selected["version"] = version + 1
         changed.append(selected)
         for row in changed:
-            columns = list(row)
-            await asyncio.to_thread(
-                self._client.insert,
-                "baseline_versions",
-                [[row[column] for column in columns]],
-                column_names=columns,
-            )
+            await self._insert("baseline_versions", row)
         del actor
         return True
 
@@ -462,13 +460,7 @@ class ClickHouseRepository:
             "created_at": datetime.now(UTC),
             "activated_at": None,
         }
-        columns = list(record)
-        await asyncio.to_thread(
-            self._client.insert,
-            "metric_configs",
-            [[record[column] for column in columns]],
-            column_names=columns,
-        )
+        await self._insert("metric_configs", record)
         return record
 
     async def record_audit(
@@ -493,10 +485,4 @@ class ClickHouseRepository:
             "details_json": json.dumps(details or {}, separators=(",", ":"), sort_keys=True),
             "occurred_at": datetime.now(UTC),
         }
-        columns = list(record)
-        await asyncio.to_thread(
-            self._client.insert,
-            "audit_events",
-            [[record[column] for column in columns]],
-            column_names=columns,
-        )
+        await self._insert("audit_events", record)

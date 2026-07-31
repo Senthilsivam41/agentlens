@@ -8,25 +8,28 @@ Only the current phase may move to `in-progress`. A phase becomes `complete` aft
 
 | Order | Phase | Status | Dependency | Completion gate |
 | --- | --- | --- | --- | --- |
-| 1 | Phase 0 — Repository foundation | `not-started` | None | Fresh clone builds, tests, and validates Compose. |
-| 2 | Phase 1 — Contracts and ClickHouse schema | `not-started` | Phase 0 | Fixtures migrate and reconstruct without durable raw text. |
-| 3 | Phase 2 — Python SDK and AKS/EKS edge collector | `not-started` | Phase 1 contracts | LangGraph sends equivalent telemetry through SDK or plain OTLP. |
-| 4 | Phase 3 — Shared secure ingestion | `not-started` | Phase 2 | mTLS identity, redaction, buffering, and replay pass integration tests. |
-| 5 | Phase 4 — Streaming and trace assembly | `not-started` | Phase 3 | Replayed spans produce one logical execution and full structural coverage. |
-| 6 | Phase 5 — Imported baselines and scoring | `not-started` | Phase 4 | Fixed corpus produces deterministic, versioned scores. |
-| 7 | Phase 6 — API, OIDC, tenant isolation | `not-started` | Phase 5 schemas | Authenticated finding-to-execution flow works without tenant leakage. |
-| 8 | Phase 7 — Dashboard and deployments | `not-started` | Phase 6 OpenAPI | Compose and Kubernetes flows work for LangGraph and CrewAI. |
-| 9 | Phase 8 — Pilot hardening | `not-started` | Phases 0–7 | Security, privacy, recovery, load, freshness, and accessibility gates pass. |
+| 1 | Phase 0 — Repository foundation | `complete` | None | Python/Node workspaces, pinned locks, CI, Dockerfiles, Compose, ADRs, lint, type, and test commands exist and have run. |
+| 2 | Phase 1 — Contracts and ClickHouse schema | `complete` | Phase 0 | Versioned contracts and tenant-scoped migrations exist; smoke telemetry reconstructs without durable raw text. |
+| 3 | Phase 2 — Python SDK and AKS/EKS edge collector | `complete` | Phase 1 contracts | Optional LangGraph/CrewAI SDK and generic AKS/EKS-compatible edge Helm chart are implemented. |
+| 4 | Phase 3 — Shared secure ingestion | `complete` | Phase 2 | Edge/platform collectors, mTLS configuration, identity overwrite, redaction, disk queueing, and replay-oriented Kafka ingestion are implemented and configs validate. |
+| 5 | Phase 4 — Streaming and trace assembly | `complete` | Phase 3 | Live smoke spans produced one complete logical execution and structural score through Redpanda and ClickHouse. |
+| 6 | Phase 5 — Imported baselines and scoring | `complete` | Phase 4 | Baseline validation/fitting, versioned storage, Mahalanobis/ambiguity/volatility scoring, sampling, encryption, and deterministic tests are implemented. |
+| 7 | Phase 6 — API, OIDC, tenant isolation | `complete` | Phase 5 schemas | Tenant-scoped API, OIDC JWT validation, RBAC, audit, limits, and isolation tests are implemented; local ClickHouse API queries pass. |
+| 8 | Phase 7 — Dashboard and deployments | `complete` | Phase 6 OpenAPI | Dashboard, Compose, platform/edge Helm charts, health checks, and container builds are implemented and previously validated. |
+| 9 | Phase 8 — Pilot hardening | `in-progress` | Phases 0–7 | Security, privacy, recovery, load, freshness, accessibility, and live AKS/EKS gates pass. |
 | 10 | Post-pilot expansion | `not-started` | Successful pilot | Individually approved Text-to-SQL, alerts, feedback, and guardrails ship. |
 
-## Immediate Next Work: Phase 0
+## Immediate Next Work: Phase 8
 
-1. Establish monorepo directories for API, web, worker, contracts, migrations, infrastructure, examples, and tests.
-2. Bootstrap pinned Python and Node toolchains.
-3. Add formatting, linting, type checking, unit-test commands, and CI.
-4. Produce a truthful, health-checkable Compose foundation.
-5. Convert locked architecture decisions into ADRs.
-6. Pass the Phase 0 completion gate before starting Phase 1.
+1. Add `.pnpm-store/` to ignore rules, restore dependencies with `CI=true pnpm install --frozen-lockfile`, and rerun lint, typecheck, Vitest, and the Next.js production build.
+2. Run the full repository validation set: Python checks, Compose render, Collector config validation, both Helm lints, image builds, `git diff --check`, and local Markdown-link verification.
+3. Add automated end-to-end coverage for the proven OTLP-to-API smoke path, including Kafka `earliest` recovery and concurrent dashboard API requests.
+4. Exercise an imported fixed baseline with an embedding-provider test credential; prove deterministic semantic score and finding creation under the 60-second p95 target.
+5. Run privacy tests proving durable prompt/output values are HMAC hashes and encrypted transient records expire within 15 minutes.
+6. Run tenant-isolation and OIDC acceptance against a real identity provider; run collector mTLS certificate rotation and rejection tests.
+7. Execute load and soak tests at 1,000 traces/minute, then tune worker replicas, Kafka partitions, ClickHouse batching, and API limits from evidence.
+8. Deploy edge and platform charts to one AKS or EKS pilot environment; validate outage buffering, replay, backup/restore, rollback, dashboards, and runbooks.
+9. Perform security, accessibility, and disaster-recovery reviews. Close Phase 8 only when every acceptance artifact is recorded.
 
 ## Post-Pilot Candidates
 
@@ -38,4 +41,3 @@ Only the current phase may move to `in-progress`. A phase becomes `complete` aft
 - Inline cost and retry guardrails.
 - Additional agent frameworks.
 - HA and multi-region deployment.
-

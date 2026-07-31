@@ -41,6 +41,7 @@ async def normalize(settings: WorkerSettings) -> None:
         bootstrap_servers=settings.kafka_bootstrap_servers,
         group_id=f"{settings.kafka_group_id}-normalize",
         enable_auto_commit=False,
+        auto_offset_reset="earliest",
     )
     producer = AIOKafkaProducer(
         bootstrap_servers=settings.kafka_bootstrap_servers,
@@ -77,6 +78,7 @@ async def assemble(settings: WorkerSettings) -> None:
         bootstrap_servers=settings.kafka_bootstrap_servers,
         group_id=f"{settings.kafka_group_id}-assemble",
         enable_auto_commit=False,
+        auto_offset_reset="earliest",
     )
     producer = AIOKafkaProducer(
         bootstrap_servers=settings.kafka_bootstrap_servers,
@@ -160,6 +162,7 @@ async def score(settings: WorkerSettings) -> None:
         bootstrap_servers=settings.kafka_bootstrap_servers,
         group_id=f"{settings.kafka_group_id}-score",
         enable_auto_commit=False,
+        auto_offset_reset="earliest",
     )
     producer = AIOKafkaProducer(
         bootstrap_servers=settings.kafka_bootstrap_servers,
