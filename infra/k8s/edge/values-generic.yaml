@@ -1,0 +1,4 @@
+clusterId: replace-with-kubernetes-cluster-id
+podAnnotations:
+  agentlens.io/cloud-provider: unknown
+

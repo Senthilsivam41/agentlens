@@ -1,0 +1,12 @@
+{{- range $component := list "api" "web" "worker-normalize" "worker-assemble" "worker-score" "collector" }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "agentlens-platform.fullname" $ }}-{{ $component }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: {{ $component }}
+---
+{{- end }}

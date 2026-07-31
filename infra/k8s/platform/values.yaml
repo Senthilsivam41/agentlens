@@ -1,0 +1,68 @@
+imagePullSecrets: []
+
+migrations:
+  image: agentlens/migrations:0.1.0
+
+api:
+  image: agentlens/api:0.1.0
+  replicas: 2
+  resources:
+    requests: {cpu: 200m, memory: 256Mi}
+    limits: {cpu: "2", memory: 1Gi}
+web:
+  image: agentlens/web:0.1.0
+  replicas: 2
+  resources:
+    requests: {cpu: 100m, memory: 192Mi}
+    limits: {cpu: "1", memory: 768Mi}
+worker:
+  image: agentlens/stream-worker:0.1.0
+  normalizerReplicas: 2
+  assemblerReplicas: 2
+  scorerReplicas: 2
+  resources:
+    requests: {cpu: 250m, memory: 512Mi}
+    limits: {cpu: "2", memory: 2Gi}
+collector:
+  image: otel/opentelemetry-collector-contrib:0.157.0
+  replicas: 2
+  existingTlsSecret: agentlens-platform-collector-tls
+  existingKafkaTlsSecret: agentlens-platform-kafka-tls
+  resources:
+    requests: {cpu: 200m, memory: 256Mi}
+    limits: {cpu: "2", memory: 1Gi}
+
+config:
+  clickhouseHost: ""
+  clickhousePort: "8123"
+  clickhouseNativePort: "9000"
+  clickhouseDatabase: agentlens
+  kafkaBootstrapServers: ""
+  kafkaRawTopic: agentlens.otlp.traces.v1
+  kafkaSpanTopic: agentlens.spans.transient.v1
+  kafkaScoreTopic: agentlens.executions.score.v1
+  kafkaDlqTopic: agentlens.ingest.dlq.v1
+  openaiEmbeddingModel: text-embedding-3-small
+  oidcIssuer: ""
+  oidcAudience: agentlens-api
+  oidcJwksUrl: ""
+  oidcClientId: ""
+  oidcRedirectUri: ""
+  publicApiUrl: ""
+
+existingSecret: agentlens-platform-secrets
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+  targetCpuUtilization: 70
+
+ingress:
+  enabled: false
+  className: ""
+  controllerNamespace: ingress-nginx
+  annotations: {}
+  apiHost: api.agentlens.example
+  webHost: agentlens.example
+  tlsSecret: agentlens-ingress-tls

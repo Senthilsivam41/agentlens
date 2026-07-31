@@ -1,0 +1,30 @@
+replicaCount: 2
+
+image:
+  repository: otel/opentelemetry-collector-contrib
+  tag: "0.157.0"
+  pullPolicy: IfNotPresent
+
+tenantId: ""
+clusterId: ""
+platformEndpoint: ""
+platformTlsInsecure: false
+existingTlsSecret: agentlens-edge-tls
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+persistence:
+  enabled: true
+  size: 2Gi
+  storageClassName: ""
+
+service:
+  annotations: {}
+
+podAnnotations: {}

@@ -1,0 +1,7 @@
+clusterId: replace-with-aks-cluster-id
+podAnnotations:
+  agentlens.io/cloud-provider: azure
+service:
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+

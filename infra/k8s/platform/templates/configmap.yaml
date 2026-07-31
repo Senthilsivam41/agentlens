@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "agentlens-platform.fullname" . }}
+data:
+  AGENTLENS_AUTH_MODE: "oidc"
+  CLICKHOUSE_HOST: {{ required "config.clickhouseHost is required" .Values.config.clickhouseHost | quote }}
+  CLICKHOUSE_PORT: {{ .Values.config.clickhousePort | quote }}
+  CLICKHOUSE_DATABASE: {{ .Values.config.clickhouseDatabase | quote }}
+  KAFKA_BOOTSTRAP_SERVERS: {{ required "config.kafkaBootstrapServers is required" .Values.config.kafkaBootstrapServers | quote }}
+  KAFKA_RAW_TOPIC: {{ .Values.config.kafkaRawTopic | quote }}
+  KAFKA_SPAN_TOPIC: {{ .Values.config.kafkaSpanTopic | quote }}
+  KAFKA_SCORE_TOPIC: {{ .Values.config.kafkaScoreTopic | quote }}
+  KAFKA_DLQ_TOPIC: {{ .Values.config.kafkaDlqTopic | quote }}
+  OPENAI_EMBEDDING_MODEL: {{ .Values.config.openaiEmbeddingModel | quote }}
+  OIDC_ISSUER: {{ required "config.oidcIssuer is required" .Values.config.oidcIssuer | quote }}
+  OIDC_AUDIENCE: {{ .Values.config.oidcAudience | quote }}
+  OIDC_JWKS_URL: {{ required "config.oidcJwksUrl is required" .Values.config.oidcJwksUrl | quote }}
+  AGENTLENS_API_URL: {{ printf "http://%s-api:8000" (include "agentlens-platform.fullname" .) | quote }}
+  NEXT_PUBLIC_AGENTLENS_API_URL: {{ .Values.config.publicApiUrl | quote }}
+  OIDC_CLIENT_ID: {{ .Values.config.oidcClientId | quote }}
+  OIDC_REDIRECT_URI: {{ .Values.config.oidcRedirectUri | quote }}
+  collector.yaml: |
+{{ .Files.Get "files/collector.yaml" | indent 4 }}

@@ -1,0 +1,49 @@
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  file_storage:
+    directory: /var/lib/otelcol
+    create_directory: true
+receivers:
+  otlp:
+    protocols:
+      grpc: {endpoint: 0.0.0.0:4317}
+      http: {endpoint: 0.0.0.0:4318}
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 75
+    spike_limit_percentage: 15
+  k8sattributes:
+    auth_type: serviceAccount
+    extract:
+      metadata: [k8s.namespace.name, k8s.deployment.name, k8s.pod.name, k8s.pod.uid, k8s.node.name]
+  redaction:
+    allow_all_keys: true
+    blocked_values:
+      - '(?i)(api[_-]?key|authorization|password|secret|token)["'' ]*[:=]["'' ]*[^,; ]+'
+      - '(?i)bearer\s+[a-z0-9._~+/-]+=*'
+      - '\b(?:\d[ -]*?){13,19}\b'
+    summary: info
+  resource/agentlens:
+    attributes:
+      - {key: agentlens.tenant_id, value: "${env:AGENTLENS_TENANT_ID}", action: upsert}
+      - {key: agentlens.cluster_id, value: "${env:AGENTLENS_CLUSTER_ID}", action: upsert}
+  batch: {timeout: 1s, send_batch_size: 1024}
+exporters:
+  otlp_grpc/platform:
+    endpoint: "${env:AGENTLENS_PLATFORM_OTLP_ENDPOINT}"
+    tls:
+      insecure: "${env:AGENTLENS_PLATFORM_TLS_INSECURE}"
+      ca_file: /etc/agentlens/tls/ca.crt
+      cert_file: /etc/agentlens/tls/tls.crt
+      key_file: /etc/agentlens/tls/tls.key
+    sending_queue: {enabled: true, storage: file_storage, queue_size: 10000}
+    retry_on_failure: {enabled: true, initial_interval: 1s, max_interval: 30s, max_elapsed_time: 0s}
+service:
+  extensions: [health_check, file_storage]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, k8sattributes, redaction, resource/agentlens, batch]
+      exporters: [otlp_grpc/platform]

@@ -1,0 +1,7 @@
+apiVersion: v2
+name: agentlens-edge
+description: Agent Lens per-cluster OTLP edge collector
+type: application
+version: 0.1.0
+appVersion: "0.157.0"
+

@@ -1,0 +1,63 @@
+[project]
+name = "agentlens-workspace"
+version = "0.1.0"
+description = "Agentic AI observability and mathematical drift platform"
+requires-python = ">=3.12,<3.15"
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "httpx>=0.28,<1",
+  "mypy>=1.17,<2",
+  "pytest>=8.4,<9",
+  "pytest-asyncio>=1.1,<2",
+  "pytest-cov>=6.2,<7",
+  "ruff>=0.12,<1",
+]
+
+[tool.uv.workspace]
+members = [
+  "apps/api",
+  "packages/contracts",
+  "packages/sdk-python",
+  "services/stream-worker",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+addopts = "-q --strict-markers"
+testpaths = ["tests", "apps/api/tests", "packages", "services"]
+pythonpath = [
+  "apps/api/src",
+  "packages/contracts/src",
+  "packages/sdk-python/src",
+  "services/stream-worker/src",
+]
+asyncio_mode = "auto"
+filterwarnings = [
+  "ignore:The 'u' type code is deprecated.*:DeprecationWarning:clickhouse_connect.driver.ctypes",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_configs = true
+mypy_path = [
+  "apps/api/src",
+  "packages/contracts/src",
+  "packages/sdk-python/src",
+  "services/stream-worker/src",
+]
+
+[[tool.mypy.overrides]]
+module = ["aiokafka.*", "clickhouse_connect.*", "pyarrow.*"]
+ignore_missing_imports = true

@@ -1,0 +1,115 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agentlens-platform.fullname" . }}-api
+spec:
+  replicas: {{ .Values.api.replicas }}
+  selector: {matchLabels: {app.kubernetes.io/component: api}}
+  template:
+    metadata: {labels: {app.kubernetes.io/component: api}}
+    spec:
+      containers:
+        - name: api
+          image: {{ .Values.api.image | quote }}
+          envFrom:
+            - configMapRef: {name: {{ include "agentlens-platform.fullname" . }}}
+            - secretRef: {name: {{ .Values.existingSecret }}}
+          ports: [{name: http, containerPort: 8000}]
+          readinessProbe: {httpGet: {path: /health/ready, port: http}}
+          livenessProbe: {httpGet: {path: /health/live, port: http}}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, runAsNonRoot: true}
+          resources:
+{{ toYaml .Values.api.resources | indent 12 }}
+          volumeMounts: [{name: tmp, mountPath: /tmp}]
+      volumes: [{name: tmp, emptyDir: {}}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agentlens-platform.fullname" . }}-web
+spec:
+  replicas: {{ .Values.web.replicas }}
+  selector: {matchLabels: {app.kubernetes.io/component: web}}
+  template:
+    metadata: {labels: {app.kubernetes.io/component: web}}
+    spec:
+      containers:
+        - name: web
+          image: {{ .Values.web.image | quote }}
+          envFrom:
+            - configMapRef: {name: {{ include "agentlens-platform.fullname" . }}}
+            - secretRef: {name: {{ .Values.existingSecret }}}
+          ports: [{name: http, containerPort: 3000}]
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, runAsNonRoot: true}
+          resources:
+{{ toYaml .Values.web.resources | indent 12 }}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+            - {name: next-cache, mountPath: /app/apps/web/.next/cache}
+      volumes:
+        - {name: tmp, emptyDir: {}}
+        - {name: next-cache, emptyDir: {}}
+---
+{{- range $mode, $replicas := dict "normalize" .Values.worker.normalizerReplicas "assemble" .Values.worker.assemblerReplicas "score" .Values.worker.scorerReplicas }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agentlens-platform.fullname" $ }}-worker-{{ $mode }}
+spec:
+  replicas: {{ $replicas }}
+  selector: {matchLabels: {app.kubernetes.io/component: worker-{{ $mode }}}}
+  template:
+    metadata: {labels: {app.kubernetes.io/component: worker-{{ $mode }}}}
+    spec:
+      containers:
+        - name: worker
+          image: {{ $.Values.worker.image | quote }}
+          env:
+            - {name: WORKER_MODE, value: {{ $mode | quote }}}
+          envFrom:
+            - configMapRef: {name: {{ include "agentlens-platform.fullname" $ }}}
+            - secretRef: {name: {{ $.Values.existingSecret }}}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, runAsNonRoot: true}
+          resources:
+{{ toYaml $.Values.worker.resources | indent 12 }}
+          volumeMounts: [{name: tmp, mountPath: /tmp}]
+      volumes: [{name: tmp, emptyDir: {}}]
+---
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agentlens-platform.fullname" . }}-collector
+spec:
+  replicas: {{ .Values.collector.replicas }}
+  selector: {matchLabels: {app.kubernetes.io/component: collector}}
+  template:
+    metadata: {labels: {app.kubernetes.io/component: collector}}
+    spec:
+      containers:
+        - name: collector
+          image: {{ .Values.collector.image | quote }}
+          args: ["--config=/etc/agentlens/collector.yaml"]
+          envFrom:
+            - configMapRef: {name: {{ include "agentlens-platform.fullname" . }}}
+          ports:
+            - {name: otlp-grpc, containerPort: 4317}
+            - {name: otlp-http, containerPort: 4318}
+            - {name: health, containerPort: 13133}
+            - {name: metrics, containerPort: 8888}
+          readinessProbe: {httpGet: {path: /, port: health}}
+          livenessProbe: {httpGet: {path: /, port: health}}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, runAsNonRoot: true}
+          resources:
+{{ toYaml .Values.collector.resources | indent 12 }}
+          volumeMounts:
+            - {name: config, mountPath: /etc/agentlens/collector.yaml, subPath: collector.yaml, readOnly: true}
+            - {name: collector-tls, mountPath: /etc/agentlens/tls, readOnly: true}
+            - {name: kafka-tls, mountPath: /etc/agentlens/kafka-tls, readOnly: true}
+      volumes:
+        - name: config
+          configMap: {name: {{ include "agentlens-platform.fullname" . }}}
+        - name: collector-tls
+          secret: {secretName: {{ .Values.collector.existingTlsSecret }}}
+        - name: kafka-tls
+          secret: {secretName: {{ .Values.collector.existingKafkaTlsSecret }}}

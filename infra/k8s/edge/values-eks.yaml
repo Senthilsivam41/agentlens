@@ -1,0 +1,7 @@
+clusterId: replace-with-eks-cluster-id
+podAnnotations:
+  agentlens.io/cloud-provider: aws
+service:
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+

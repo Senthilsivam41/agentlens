@@ -1,0 +1,13 @@
+{
+  "name": "agentlens-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.9.0",
+  "scripts": {
+    "build": "pnpm --filter @agentlens/web build",
+    "dev": "pnpm --filter @agentlens/web dev",
+    "lint": "pnpm --filter @agentlens/web lint",
+    "test": "pnpm --filter @agentlens/web test",
+    "typecheck": "pnpm --filter @agentlens/web typecheck"
+  }
+}
