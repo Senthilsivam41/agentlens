@@ -1,6 +1,6 @@
 # Next Plans
 
-**Last updated:** 2026-07-31
+**Last updated:** 2026-08-01
 
 Only the current phase may move to `in-progress`. A phase becomes `complete` after its gate passes.
 
@@ -21,7 +21,7 @@ Only the current phase may move to `in-progress`. A phase becomes `complete` aft
 
 ## Immediate Next Work: Phase 8
 
-1. Add `.pnpm-store/` to ignore rules, restore dependencies with `CI=true pnpm install --frozen-lockfile`, and rerun lint, typecheck, Vitest, and the Next.js production build.
+1. Restore dependencies with `CI=true pnpm install --frozen-lockfile`, then rerun lint, typecheck, Vitest, and the Next.js production build.
 2. Run the full repository validation set: Python checks, Compose render, Collector config validation, both Helm lints, image builds, `git diff --check`, and local Markdown-link verification.
 3. Add automated end-to-end coverage for the proven OTLP-to-API smoke path, including Kafka `earliest` recovery and concurrent dashboard API requests.
 4. Exercise an imported fixed baseline with an embedding-provider test credential; prove deterministic semantic score and finding creation under the 60-second p95 target.

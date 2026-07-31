@@ -1,6 +1,6 @@
 # Current Status
 
-**Last updated:** 2026-07-31
+**Last updated:** 2026-08-01
 
 **Active branch:** `main`
 
@@ -47,7 +47,7 @@
 - API ClickHouse access is serialized to prevent concurrent reuse of one client session.
 - Kafka consumers default to `earliest` so durable groups process records that arrive before first assignment.
 - Compose, ClickHouse image/migrations, and schema alignment fixes are pending commit.
-- `.pnpm-store/v11/index.db-shm` and `.pnpm-store/v11/index.db-wal` are local install artifacts and must not be committed.
+- The repository-local `.pnpm-store/` cache is ignored and was removed; `pnpm-lock.yaml` remains the tracked reproducibility artifact.
 
 ## Git State
 

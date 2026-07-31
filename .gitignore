@@ -11,6 +11,7 @@ __pycache__/
 coverage.xml
 htmlcov/
 node_modules/
+.pnpm-store/
 .next/
 dist/
 build/
@@ -18,4 +19,3 @@ build/
 .idea/
 .vscode/
 data/
-

@@ -54,3 +54,11 @@ Append-only project completion log. New entries belong at the end.
 - **Validation:** Compared the memory snapshot with branch `main` at `83034e3`, the current worktree, successful local runtime queries, and latest validation outputs.
 - **Result:** Future sessions have an evidence-backed starting point and must read repository memory before implementation.
 - **Related phase:** Project administration and Phase 8.
+
+## 2026-08-01 — Ignore Local pnpm Store
+
+- **Action:** Added the repository-local pnpm content-addressable store to Git ignore rules and removed its regenerable cache files from the worktree.
+- **Files changed:** `.gitignore`, `memory/README.md`, `memory/current-status.md`, `memory/next-plans.md`, and `memory/completed-actions.md`.
+- **Validation:** Confirmed `.pnpm-store/` matches `.gitignore`, the local directory is absent, and `git diff --check` passes. Its three previously tracked database files now appear as intentional deletions until committed.
+- **Result:** pnpm cache/database files cannot be accidentally committed; `pnpm-lock.yaml` remains tracked.
+- **Related phase:** Phase 8 pilot hardening.
