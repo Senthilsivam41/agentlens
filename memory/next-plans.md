@@ -31,6 +31,8 @@ Only the current phase may move to `in-progress`. A phase becomes `complete` aft
 
 ## Post-Pilot Candidates
 
+- Canonical orchestration lifecycle semantic contract and AutoClaw file-to-OTLP adapter.
+- Framework integration packs for OpenAI Agents SDK, Microsoft Agent Framework/Semantic Kernel, Google ADK, and AutoGen.
 - Constrained Text-to-SQL.
 - Webhook, Slack, and PagerDuty alerts.
 - Human feedback and offline LLM-judge calibration.

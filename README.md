@@ -24,6 +24,7 @@ An enterprise-grade, open-source observability platform for **LangGraph** and **
 - [Next plans](memory/next-plans.md)
 - [Locked decisions](memory/decisions.md)
 - [Phase 8 pilot hardening runbook](docs/pilot-hardening-runbook.md)
+- [Product positioning and ecosystem integration](docs/product-positioning-and-ecosystem-integration.md)
 
 ---
 
