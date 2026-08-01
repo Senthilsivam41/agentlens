@@ -28,6 +28,7 @@
 - Kubernetes: edge and platform Helm charts include mTLS, persistent edge queueing, health checks, autoscaling, disruption budgets, network policy, ingress, and migrations.
 - OTel Collector: edge and shared-platform configurations validate against Collector Contrib `0.157.0`.
 - Canonical architecture and development roadmap: present under `docs/`.
+- Product positioning and ecosystem strategy: proposed under `docs/`, with agent-synthetix/AutoClaw as the first reference control-plane integration; no adapter implementation has been completed.
 - CodeGraph: user reported initialized, but `.codegraph/` remains absent at repository root; repository discovery therefore falls back to normal tools.
 
 ## Latest Runtime Evidence

@@ -71,3 +71,13 @@ Append-only project completion log. New entries belong at the end.
 - **Validation:** Ruff formatting/lint, strict mypy across source and scripts, and 23 pytest tests passed. Frozen pnpm install, ESLint, TypeScript, 2 Vitest tests, and Next production build passed. Compose rendered and API/worker images rebuilt. A live three-trace run passed 30 concurrent API requests with 30.423-second p95 freshness, three durable HMAC-bearing spans, and zero durable raw-content marker matches. `git diff --check` passed before memory updates.
 - **Result:** The local freshness, API concurrency, and durable prompt/output privacy gates are automated and passing. Phase 8 remains in progress pending recovery, full target load/soak, cloud identity/mTLS, baseline-provider, accessibility, disaster-recovery, and live AKS/EKS evidence.
 - **Related phase:** Phase 8 pilot hardening.
+
+## 2026-08-01 — Product Positioning and Ecosystem Integration Strategy
+
+- **Action:** Defined Agent Lens as a framework-neutral agent behavior observability and assurance layer rather than an agent framework, control plane, or generic trace viewer.
+- **Action:** Developed a reference integration blueprint for agent-synthetix/AutoClaw using runtime OTLP/OpenInference spans plus an optional file-native lifecycle-event bridge.
+- **Action:** Prioritized broader LangGraph, CrewAI, OpenAI Agents SDK, Microsoft Agent Framework/Semantic Kernel, Google ADK, AutoGen, custom OTel, and Kubernetes integration paths.
+- **Files changed:** `docs/product-positioning-and-ecosystem-integration.md`, `README.md`, `memory/current-status.md`, `memory/next-plans.md`, and `memory/completed-actions.md`.
+- **Validation:** Compared the strategy with Agent Lens architecture and privacy decisions and with the attached AutoClaw rules, state machine, sprint/task schema, console filesystem API, and on-disk orchestration contract. `git diff --check` passed.
+- **Result:** Product positioning, adoption levels, reference architecture, RICE/MoSCoW priorities, delivery phases, metrics, risks, and required decisions are documented. No AutoClaw adapter implementation is claimed.
+- **Related phase:** Product strategy and post-pilot ecosystem expansion.
