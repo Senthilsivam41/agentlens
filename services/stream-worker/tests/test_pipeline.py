@@ -1,8 +1,9 @@
+import json
 from datetime import UTC, datetime, timedelta
 
 from agentlens_contracts import Framework, SamplingReason, SpanStatus, TransientSpan
 from agentlens_worker import AdaptiveSampler, TraceAssembler, extract_features
-from agentlens_worker.durable import to_durable
+from agentlens_worker.durable import durable_attributes, to_durable
 from agentlens_worker.redaction import redact_text
 from agentlens_worker.serialization import transient_span_from_bytes, transient_span_to_bytes
 from agentlens_worker.transient import (
@@ -77,10 +78,33 @@ def test_redaction_masks_credentials_and_email() -> None:
 
 
 def test_durable_span_contains_hashes_not_text() -> None:
-    durable = to_durable(span(), hmac_key=b"test-key")
+    durable = to_durable(
+        span(
+            attributes={
+                "input.value": "hello world hello",
+                "openinference.output.value": "done",
+                "gen_ai.prompt.0.content": "another secret prompt",
+                "gen_ai.output.messages.0.content": "another secret answer",
+                "tool.name": "safe-tool-name",
+            }
+        ),
+        hmac_key=b"test-key",
+    )
     payload = durable.model_dump_json()
     assert "hello world hello" not in payload
+    assert "another secret" not in payload
+    assert json.loads(durable.attributes_json) == {"tool.name": "safe-tool-name"}
     assert durable.input_hash is not None
+
+
+def test_durable_attribute_filter_is_case_insensitive_and_non_mutating() -> None:
+    attributes = {
+        "INPUT.VALUE": "secret",
+        "LLM.PROMPTS.0.CONTENT": "secret",
+        "service.operation": "safe",
+    }
+    assert durable_attributes(attributes) == {"service.operation": "safe"}
+    assert attributes["INPUT.VALUE"] == "secret"
 
 
 def test_semantic_candidate_is_encrypted_and_expires() -> None:

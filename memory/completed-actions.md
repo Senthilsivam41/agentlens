@@ -62,3 +62,12 @@ Append-only project completion log. New entries belong at the end.
 - **Validation:** Confirmed `.pnpm-store/` matches `.gitignore`, the local directory is absent, and `git diff --check` passes. Its three previously tracked database files now appear as intentional deletions until committed.
 - **Result:** pnpm cache/database files cannot be accidentally committed; `pnpm-lock.yaml` remains tracked.
 - **Related phase:** Phase 8 pilot hardening.
+
+## 2026-08-01 — Local Privacy and Freshness Hardening
+
+- **Action:** Removed known OpenInference, OTel GenAI, and LLM prompt/output content attributes at the durable-storage boundary; added privacy and concurrent API regression tests.
+- **Action:** Added a repeatable pilot acceptance runner and hardening runbook for local, load, AKS/EKS, identity, recovery, and accessibility gates.
+- **Files changed:** `services/stream-worker/src/agentlens_worker/durable.py`, `services/stream-worker/tests/test_pipeline.py`, `apps/api/tests/test_api.py`, `scripts/pilot_acceptance.py`, `docs/pilot-hardening-runbook.md`, `Makefile`, and `README.md`.
+- **Validation:** Ruff formatting/lint, strict mypy across source and scripts, and 23 pytest tests passed. Frozen pnpm install, ESLint, TypeScript, 2 Vitest tests, and Next production build passed. Compose rendered and API/worker images rebuilt. A live three-trace run passed 30 concurrent API requests with 30.423-second p95 freshness, three durable HMAC-bearing spans, and zero durable raw-content marker matches. `git diff --check` passed before memory updates.
+- **Result:** The local freshness, API concurrency, and durable prompt/output privacy gates are automated and passing. Phase 8 remains in progress pending recovery, full target load/soak, cloud identity/mTLS, baseline-provider, accessibility, disaster-recovery, and live AKS/EKS evidence.
+- **Related phase:** Phase 8 pilot hardening.

@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -88,3 +89,22 @@ def test_rate_limit_returns_retry_after() -> None:
     limited = client.get("/v1/metrics/summary")
     assert limited.status_code == 429
     assert limited.headers["retry-after"] == "60"
+
+
+def test_dashboard_queries_are_safe_under_concurrency() -> None:
+    client, repository = client_and_repository()
+    repository.executions.extend(
+        {"tenant_id": "tenant-a", "trace_id": f"{index:032x}"} for index in range(20)
+    )
+
+    paths = ["/v1/metrics/summary", "/v1/executions?limit=20"] * 20
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        responses = list(executor.map(client.get, paths))
+
+    assert all(response.status_code == 200 for response in responses)
+    summaries = [
+        response.json()
+        for response, path in zip(responses, paths, strict=True)
+        if "summary" in path
+    ]
+    assert all(summary["executions"] == 20 for summary in summaries)

@@ -1,4 +1,4 @@
-.PHONY: setup lint typecheck test build compose-config compose-up compose-down migrate
+.PHONY: setup lint typecheck test build compose-config compose-up compose-down migrate pilot-acceptance
 
 setup:
 	uv sync --all-packages --group dev
@@ -32,3 +32,5 @@ compose-down:
 migrate:
 	docker compose --env-file .env -f infra/compose/docker-compose.yaml run --rm migrations
 
+pilot-acceptance:
+	uv run python scripts/pilot_acceptance.py

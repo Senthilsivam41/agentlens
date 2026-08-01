@@ -1,12 +1,49 @@
 """Convert transient spans into text-free durable records."""
 
-from __future__ import annotations
-
 import json
 
 from agentlens_contracts import DurableSpan, TransientSpan
 
 from .hashing import content_hmac
+
+# Semantic-convention providers use several names for prompt and response
+# content. Keep operational metadata, but discard content-bearing attributes at
+# the last boundary before durable storage. This is defense in depth: callers
+# cannot accidentally persist raw content by constructing a TransientSpan
+# directly or by adding a new normalizer alias.
+_CONTENT_ATTRIBUTE_KEYS = frozenset(
+    {
+        "input.value",
+        "output.value",
+        "openinference.input.value",
+        "openinference.output.value",
+        "llm.input_messages",
+        "llm.output_messages",
+        "gen_ai.prompt",
+        "gen_ai.completion",
+        "gen_ai.input.messages",
+        "gen_ai.output.messages",
+        "gen_ai.system_instructions",
+    }
+)
+_CONTENT_ATTRIBUTE_PREFIXES = (
+    "gen_ai.prompt.",
+    "gen_ai.completion.",
+    "gen_ai.input.messages.",
+    "gen_ai.output.messages.",
+    "llm.prompts.",
+    "llm.completions.",
+)
+
+
+def durable_attributes(attributes: dict[str, object]) -> dict[str, object]:
+    """Return operational attributes with all known content fields removed."""
+    return {
+        key: value
+        for key, value in attributes.items()
+        if key.lower() not in _CONTENT_ATTRIBUTE_KEYS
+        and not key.lower().startswith(_CONTENT_ATTRIBUTE_PREFIXES)
+    }
 
 
 def to_durable(span: TransientSpan, *, hmac_key: bytes) -> DurableSpan:
@@ -40,5 +77,7 @@ def to_durable(span: TransientSpan, *, hmac_key: bytes) -> DurableSpan:
         retry_count=span.retry_count,
         input_hash=content_hmac(input_value, hmac_key),
         output_hash=content_hmac(output_value, hmac_key),
-        attributes_json=json.dumps(span.attributes, separators=(",", ":"), sort_keys=True),
+        attributes_json=json.dumps(
+            durable_attributes(span.attributes), separators=(",", ":"), sort_keys=True
+        ),
     )

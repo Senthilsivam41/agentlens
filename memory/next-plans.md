@@ -21,15 +21,13 @@ Only the current phase may move to `in-progress`. A phase becomes `complete` aft
 
 ## Immediate Next Work: Phase 8
 
-1. Restore dependencies with `CI=true pnpm install --frozen-lockfile`, then rerun lint, typecheck, Vitest, and the Next.js production build.
-2. Run the full repository validation set: Python checks, Compose render, Collector config validation, both Helm lints, image builds, `git diff --check`, and local Markdown-link verification.
-3. Add automated end-to-end coverage for the proven OTLP-to-API smoke path, including Kafka `earliest` recovery and concurrent dashboard API requests.
-4. Exercise an imported fixed baseline with an embedding-provider test credential; prove deterministic semantic score and finding creation under the 60-second p95 target.
-5. Run privacy tests proving durable prompt/output values are HMAC hashes and encrypted transient records expire within 15 minutes.
-6. Run tenant-isolation and OIDC acceptance against a real identity provider; run collector mTLS certificate rotation and rejection tests.
-7. Execute load and soak tests at 1,000 traces/minute, then tune worker replicas, Kafka partitions, ClickHouse batching, and API limits from evidence.
-8. Deploy edge and platform charts to one AKS or EKS pilot environment; validate outage buffering, replay, backup/restore, rollback, dashboards, and runbooks.
-9. Perform security, accessibility, and disaster-recovery reviews. Close Phase 8 only when every acceptance artifact is recorded.
+1. Automate the Kafka `earliest` outage/replay gate and prove deduplication after worker restart.
+2. Exercise an imported fixed baseline with an embedding-provider test credential; prove deterministic semantic score and finding creation under the 60-second p95 target.
+3. Run tenant-isolation and OIDC acceptance against a real identity provider; run collector mTLS certificate rotation and rejection tests.
+4. Run `scripts/pilot_acceptance.py --count 1000 --traces-per-minute 1000` for at least one hour, then a 24-hour soak; tune from measured saturation and latency.
+5. Install or provide Helm in the validation environment and rerun generic, AKS, EKS, and platform chart lints; validate Collector configs and every local Markdown link.
+6. Deploy edge and platform charts to one AKS or EKS pilot environment; validate outage buffering, replay, backup/restore, rollback, dashboards, and runbooks.
+7. Perform security, WCAG 2.2 AA accessibility, and disaster-recovery reviews. Close Phase 8 only when every acceptance artifact is recorded.
 
 ## Post-Pilot Candidates
 

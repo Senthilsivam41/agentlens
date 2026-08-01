@@ -4,7 +4,7 @@
 
 **Active branch:** `main`
 
-**HEAD:** `83034e3` (`implementing Pilot version`)
+**HEAD:** `5b4ea0c` (`removed unncessary files and updated gitignore`)
 
 **Repository state:** Runnable production-pilot implementation; pilot hardening remains
 
@@ -13,8 +13,8 @@
 - Completed implementation phases: Phase 0 through Phase 7 at pilot scope.
 - Current implementation phase: Phase 8 pilot hardening.
 - Application implementation: end-to-end pilot path is running locally.
-- Active blocker: none. Live cloud, identity-provider, embedding-provider, load, security, and recovery acceptance tests still need external environments or credentials.
-- Next executable action: restore the interrupted frontend dependency install, rerun frontend validation, then complete the Phase 8 acceptance matrix.
+- Active blocker: live cloud, identity-provider, embedding-provider, load, security, and recovery acceptance tests need external environments or credentials. The local Helm CLI is unavailable for the current chart-lint rerun.
+- Next executable action: automate Kafka outage/replay acceptance, then run the imported-baseline semantic gate with an approved embedding credential.
 
 ## Component Status
 
@@ -22,7 +22,7 @@
 - Frontend: Next.js dashboard with summary, execution, finding, and mathematical-drift views plus OAuth/OIDC routes.
 - Stream worker: Redpanda consumers for OTLP normalization, trace assembly, structural scoring, adaptive semantic sampling, encrypted transient candidates, imported baselines, and findings.
 - Contracts and SDK: Pydantic contracts plus optional Python instrumentation for LangGraph and CrewAI; plain OTLP/OpenInference remains supported.
-- Tests and CI: Python and web test/lint/type/build workflows are present. Latest Python result: 21 tests passed; Ruff and strict mypy passed.
+- Tests and CI: Python and web test/lint/type/build workflows are present. Latest Python result: 23 tests passed; Ruff and strict mypy passed.
 - Docker Compose: runnable API, web, edge/platform OTel collectors, three workers, Redpanda, ClickHouse migrations, and optional MinIO.
 - ClickHouse schema: tenant-scoped spans, executions, baseline imports/versions, metric configs, execution scores, findings, stream jobs, and audit events.
 - Kubernetes: edge and platform Helm charts include mTLS, persistent edge queueing, health checks, autoscaling, disruption budgets, network policy, ingress, and migrations.
@@ -40,15 +40,17 @@
 - `GET /v1/executions?limit=5` returned the reconstructed smoke execution.
 - Dashboard root returned HTTP 200.
 - Python validation passed: Ruff formatting/lint, strict mypy, and 21 pytest tests.
-- Frontend validation had passed earlier, but the final rerun was interrupted while reinstalling locked dependencies; rerun it before claiming the current worktree is fully validated.
+- Frontend dependencies restored from the frozen lockfile; ESLint, TypeScript, 2 Vitest tests, and the Next.js production build passed.
+- A hardened live run emitted three unique traces and passed with 30.423-second p95 freshness, 30 concurrent API requests, three HMAC-bearing durable spans, and zero raw prompt/output marker matches in ClickHouse.
+- `scripts/pilot_acceptance.py` now makes the OTLP-to-API freshness, concurrency, and durable-privacy checks repeatable and supports the 1,000 traces/minute target.
 
 ## Current Uncommitted Work
 
-- API ClickHouse access is serialized to prevent concurrent reuse of one client session.
-- Kafka consumers default to `earliest` so durable groups process records that arrive before first assignment.
-- Compose, ClickHouse image/migrations, and schema alignment fixes are pending commit.
-- The repository-local `.pnpm-store/` cache is ignored and was removed; `pnpm-lock.yaml` remains the tracked reproducibility artifact.
+- Durable attribute filtering removes known OpenInference, OTel GenAI, and LLM prompt/output content keys before ClickHouse persistence.
+- Regression tests cover content filtering and concurrent dashboard API requests.
+- The local pilot acceptance runner, Make target, and Phase 8 hardening runbook are new.
+- README links the hardening runbook.
 
 ## Git State
 
-The active branch is `main` at `83034e3`. The worktree is intentionally dirty with the runtime fixes and memory updates listed above. No commit was created by this session.
+The active branch is `main` at `5b4ea0c`. The worktree is intentionally dirty with the Phase 8 hardening changes listed above. No commit was created by this session.
