@@ -55,6 +55,8 @@ An enterprise-grade, open-source observability platform for **LangGraph** and **
                                          │ (REST API :8000)
                               [ Next.js Drift Dashboard ]
 ```
+<img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/99186c8a-9fd1-490f-b7e1-a5f23089f028" />
+
 
 - **Telemetry Ingestion:** OpenTelemetry Collector (Contrib) with OpenInference semantics.
 - **Data Lake & OLAP Storage:** ClickHouse Database.
