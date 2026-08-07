@@ -86,6 +86,7 @@ CREATE TABLE IF NOT EXISTS agentlens.baseline_imports
     checksum String,
     status LowCardinality(String),
     validation_errors Array(String),
+    baseline_id Nullable(UUID),
     created_by String,
     created_at DateTime64(3, 'UTC') DEFAULT now64(3),
     updated_at DateTime64(3, 'UTC') DEFAULT now64(3)

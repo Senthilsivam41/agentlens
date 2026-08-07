@@ -20,6 +20,7 @@ worker:
   normalizerReplicas: 2
   assemblerReplicas: 2
   scorerReplicas: 2
+  baselineImportReplicas: 1
   resources:
     requests: {cpu: 250m, memory: 512Mi}
     limits: {cpu: "2", memory: 2Gi}

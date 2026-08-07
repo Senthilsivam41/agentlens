@@ -5,24 +5,24 @@ extensions:
 receivers:
   otlp:
     protocols:
+      # Public edge traffic terminates on the identity gateway (mTLS). The
+      # in-pod collector accepts rewritten OTLP over loopback only.
       grpc:
-        endpoint: 0.0.0.0:4317
-        tls:
-          cert_file: /etc/agentlens/tls/tls.crt
-          key_file: /etc/agentlens/tls/tls.key
-          client_ca_file: /etc/agentlens/tls/ca.crt
+        endpoint: 127.0.0.1:4317
       http:
-        endpoint: 0.0.0.0:4318
-        tls:
-          cert_file: /etc/agentlens/tls/tls.crt
-          key_file: /etc/agentlens/tls/tls.key
-          client_ca_file: /etc/agentlens/tls/ca.crt
+        endpoint: 127.0.0.1:4319
 
 processors:
   memory_limiter:
     check_interval: 1s
     limit_percentage: 75
     spike_limit_percentage: 15
+  # Defense in depth: drop batches that somehow lack credential-stamped identity.
+  filter/require_identity:
+    error_mode: ignore
+    traces:
+      span:
+        - 'resource.attributes["agentlens.identity_source"] != "collector_credential"'
   batch:
     timeout: 1s
     send_batch_size: 1024
@@ -56,7 +56,7 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, batch]
+      processors: [memory_limiter, filter/require_identity, batch]
       exporters: [kafka]
   telemetry:
     metrics:

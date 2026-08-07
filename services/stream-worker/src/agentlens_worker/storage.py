@@ -105,6 +105,40 @@ class ClickHouseStorage:
             column_names=columns,
         )
 
+    def list_pending_baseline_imports(self, *, limit: int = 10) -> list[dict[str, Any]]:
+        result = self._client.query(
+            """
+            SELECT import_id, tenant_id, object_uri, checksum, status, validation_errors,
+                   created_by, created_at, updated_at, baseline_id
+            FROM baseline_imports FINAL
+            WHERE status = 'pending'
+            ORDER BY created_at ASC
+            LIMIT %(limit)s
+            """,
+            parameters={"limit": limit},
+        )
+        return [dict(zip(result.column_names, row, strict=True)) for row in result.result_rows]
+
+    def update_baseline_import(self, row: dict[str, Any]) -> None:
+        payload = {
+            "import_id": row["import_id"],
+            "tenant_id": row["tenant_id"],
+            "object_uri": row["object_uri"],
+            "checksum": row["checksum"],
+            "status": row["status"],
+            "validation_errors": row.get("validation_errors") or [],
+            "created_by": row["created_by"],
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+            "baseline_id": row.get("baseline_id"),
+        }
+        columns = list(payload)
+        self._client.insert(
+            "baseline_imports",
+            [[_encode(payload[column]) for column in columns]],
+            column_names=columns,
+        )
+
     def active_baseline(
         self, *, tenant_id: str, environment: str, agent_name: str, agent_version: str
     ) -> BaselineArtifact | None:

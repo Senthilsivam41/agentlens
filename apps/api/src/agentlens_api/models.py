@@ -30,6 +30,19 @@ class BaselineImportRequest(ApiModel):
 class BaselineImportResponse(ApiModel):
     import_id: UUID
     status: str
+    baseline_id: UUID | None = None
+    baseline_ref: str | None = None
+    validation_errors: list[str] = Field(default_factory=list)
+
+
+class BaselineSummary(ApiModel):
+    baseline_id: UUID
+    baseline_ref: str
+    tenant_id: str
+    status: str
+    environment: str | None = None
+    agent_name: str | None = None
+    agent_version: str | None = None
 
 
 class MetricConfigRequest(ApiModel):

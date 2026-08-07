@@ -5,6 +5,7 @@ from agentlens import AgentLensConfig, InstrumentationError
 def test_config_uses_environment_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://collector:4317")
     monkeypatch.setenv("OTEL_SERVICE_NAME", "orders-agent")
+    monkeypatch.setenv("AGENTLENS_BASELINE_REF", "11111111-1111-1111-1111-111111111111")
     config = AgentLensConfig.from_env(
         framework="langgraph",
         agent_name="orders",
@@ -12,6 +13,7 @@ def test_config_uses_environment_defaults(monkeypatch: pytest.MonkeyPatch) -> No
     )
     assert config.otlp_endpoint == "http://collector:4317"
     assert config.service_name == "orders-agent"
+    assert config.baseline_ref == "11111111-1111-1111-1111-111111111111"
 
 
 def test_config_rejects_empty_identity() -> None:

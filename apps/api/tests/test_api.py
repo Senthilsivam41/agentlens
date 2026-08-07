@@ -41,14 +41,48 @@ def test_execution_queries_never_return_other_tenant() -> None:
 
 
 def test_admin_can_create_baseline_import() -> None:
-    client, _ = client_and_repository()
+    client, repository = client_and_repository()
     response = client.post(
         "/v1/baseline-imports",
         json={"object_uri": "s3://baselines/package", "checksum": "a" * 64},
     )
     assert response.status_code == 202
-    assert response.json()["status"] == "pending"
+    body = response.json()
+    assert body["status"] == "pending"
+    assert body["baseline_ref"] is None
+    import_id = body["import_id"]
+    assert len(repository.baseline_imports) == 1
 
+    status = client.get(f"/v1/baseline-imports/{import_id}")
+    assert status.status_code == 200
+    assert status.json()["status"] == "pending"
+
+
+def test_baselines_expose_baseline_ref_and_activation() -> None:
+    client, repository = client_and_repository()
+    baseline_id = uuid4()
+    repository.baselines.append(
+        {
+            "baseline_id": baseline_id,
+            "tenant_id": "tenant-a",
+            "environment": "prod",
+            "agent_name": "orders",
+            "agent_version": "1.0.0",
+            "status": "candidate",
+        }
+    )
+    listed = client.get("/v1/baselines")
+    assert listed.status_code == 200
+    assert listed.json()[0]["baseline_ref"] == str(baseline_id)
+
+    activated = client.post(f"/v1/baselines/{baseline_id}/activate")
+    assert activated.status_code == 200
+    assert activated.json() == {
+        "status": "active",
+        "baseline_id": str(baseline_id),
+        "baseline_ref": str(baseline_id),
+    }
+    assert repository.baselines[0]["status"] == "active"
 
 def test_finding_update_is_tenant_scoped() -> None:
     client, repository = client_and_repository()

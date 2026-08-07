@@ -31,7 +31,7 @@ processors:
       - {key: agentlens.cluster_id, value: "${env:AGENTLENS_CLUSTER_ID}", action: upsert}
   batch: {timeout: 1s, send_batch_size: 1024}
 exporters:
-  otlp_grpc/platform:
+  otlphttp/platform:
     endpoint: "${env:AGENTLENS_PLATFORM_OTLP_ENDPOINT}"
     tls:
       insecure: "${env:AGENTLENS_PLATFORM_TLS_INSECURE}"
@@ -46,4 +46,4 @@ service:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, k8sattributes, redaction, resource/agentlens, batch]
-      exporters: [otlp_grpc/platform]
+      exporters: [otlphttp/platform]

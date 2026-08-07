@@ -13,6 +13,16 @@ import clickhouse_connect
 from .config import ApiSettings
 
 
+def _with_baseline_ref(item: dict[str, Any]) -> dict[str, Any]:
+    enriched = dict(item)
+    baseline_id = enriched.get("baseline_id")
+    if baseline_id is not None:
+        enriched["baseline_ref"] = str(baseline_id)
+    elif "baseline_ref" not in enriched:
+        enriched["baseline_ref"] = None
+    return enriched
+
+
 class Repository(Protocol):
     async def ready(self) -> bool: ...
 
@@ -37,6 +47,10 @@ class Repository(Protocol):
     async def create_baseline_import(
         self, *, tenant_id: str, object_uri: str, checksum: str, actor: str
     ) -> dict[str, Any]: ...
+
+    async def get_baseline_import(
+        self, *, tenant_id: str, import_id: UUID
+    ) -> dict[str, Any] | None: ...
 
     async def list_baselines(self, *, tenant_id: str) -> list[dict[str, Any]]: ...
 
@@ -69,6 +83,7 @@ class MemoryRepository:
         self.execution_scores: list[dict[str, Any]] = []
         self.findings: list[dict[str, Any]] = []
         self.baselines: list[dict[str, Any]] = []
+        self.baseline_imports: list[dict[str, Any]] = []
         self.metric_configs: list[dict[str, Any]] = []
         self.audit_events: list[dict[str, Any]] = []
 
@@ -143,23 +158,53 @@ class MemoryRepository:
             "object_uri": object_uri,
             "checksum": checksum,
             "status": "pending",
+            "validation_errors": [],
+            "baseline_id": None,
+            "baseline_ref": None,
             "created_by": actor,
             "created_at": datetime.now(UTC),
+            "updated_at": datetime.now(UTC),
         }
-        return record
+        self.baseline_imports.append(record)
+        return _with_baseline_ref(record)
+
+    async def get_baseline_import(
+        self, *, tenant_id: str, import_id: UUID
+    ) -> dict[str, Any] | None:
+        for item in self.baseline_imports:
+            if item["tenant_id"] == tenant_id and str(item["import_id"]) == str(import_id):
+                return _with_baseline_ref(item)
+        return None
 
     async def list_baselines(self, *, tenant_id: str) -> list[dict[str, Any]]:
-        return [item for item in self.baselines if item["tenant_id"] == tenant_id]
+        return [
+            _with_baseline_ref(item) for item in self.baselines if item["tenant_id"] == tenant_id
+        ]
 
     async def activate_baseline(self, *, tenant_id: str, baseline_id: UUID, actor: str) -> bool:
         del actor
-        matched = False
+        selected = next(
+            (
+                item
+                for item in self.baselines
+                if item["tenant_id"] == tenant_id and str(item["baseline_id"]) == str(baseline_id)
+            ),
+            None,
+        )
+        if selected is None:
+            return False
         for item in self.baselines:
             if item["tenant_id"] != tenant_id:
                 continue
+            same_segment = (
+                item.get("environment") == selected.get("environment")
+                and item.get("agent_name") == selected.get("agent_name")
+                and item.get("agent_version") == selected.get("agent_version")
+            )
+            if not same_segment:
+                continue
             item["status"] = "active" if str(item["baseline_id"]) == str(baseline_id) else "retired"
-            matched = matched or item["status"] == "active"
-        return matched
+        return True
 
     async def list_metric_configs(self, *, tenant_id: str) -> list[dict[str, Any]]:
         return [item for item in self.metric_configs if item["tenant_id"] == tenant_id]
@@ -383,19 +428,31 @@ class ClickHouseRepository:
             "checksum": checksum,
             "status": "pending",
             "validation_errors": [],
+            "baseline_id": None,
             "created_by": actor,
             "created_at": datetime.now(UTC),
             "updated_at": datetime.now(UTC),
         }
         await self._insert("baseline_imports", record)
-        return record
+        return _with_baseline_ref(record)
+
+    async def get_baseline_import(
+        self, *, tenant_id: str, import_id: UUID
+    ) -> dict[str, Any] | None:
+        rows = await self._query(
+            """SELECT * FROM baseline_imports FINAL
+            WHERE tenant_id=%(tenant_id)s AND import_id=%(import_id)s LIMIT 1""",
+            {"tenant_id": tenant_id, "import_id": import_id},
+        )
+        return _with_baseline_ref(rows[0]) if rows else None
 
     async def list_baselines(self, *, tenant_id: str) -> list[dict[str, Any]]:
-        return await self._query(
+        rows = await self._query(
             """SELECT * FROM baseline_versions FINAL
             WHERE tenant_id=%(tenant_id)s ORDER BY created_at DESC""",
             {"tenant_id": tenant_id},
         )
+        return [_with_baseline_ref(row) for row in rows]
 
     async def activate_baseline(self, *, tenant_id: str, baseline_id: UUID, actor: str) -> bool:
         rows = await self._query(

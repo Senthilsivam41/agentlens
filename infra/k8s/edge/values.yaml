@@ -5,10 +5,15 @@ image:
   tag: "0.157.0"
   pullPolicy: IfNotPresent
 
+# Local labeling only. Production identity comes from the client cert SPIFFE URI
+# SAN: spiffe://agentlens/tenant/<tenantId>/cluster/<clusterId>
+# See docs/edge-collector-identity.md
 tenantId: ""
 clusterId: ""
+# OTLP/HTTP base URL for the platform identity gateway, e.g. https://agentlens-platform-collector:4318
 platformEndpoint: ""
 platformTlsInsecure: false
+# Secret keys: tls.crt, tls.key, ca.crt — tls.crt must carry the SPIFFE URI SAN above
 existingTlsSecret: agentlens-edge-tls
 
 resources:

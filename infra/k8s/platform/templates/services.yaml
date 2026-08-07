@@ -21,5 +21,4 @@ metadata:
 spec:
   selector: {app.kubernetes.io/component: collector}
   ports:
-    - {name: otlp-grpc, port: 4317, targetPort: otlp-grpc}
     - {name: otlp-http, port: 4318, targetPort: otlp-http}
