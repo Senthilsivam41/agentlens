@@ -250,6 +250,10 @@ async def main() -> None:
         await normalize(settings)
     elif settings.worker_mode == "assemble":
         await assemble(settings)
+    elif settings.worker_mode == "baseline_import":
+        from .baseline_import_worker import run_poller
+
+        await run_poller(settings)
     else:
         await score(settings)
 

@@ -224,6 +224,17 @@ def create_app(
         )
         return created
 
+    @app.get("/v1/baseline-imports/{import_id}", tags=["baselines"])
+    async def get_baseline_import(
+        import_id: UUID, request: Request, principal: CurrentPrincipal
+    ) -> dict[str, Any]:
+        item = await repo(request).get_baseline_import(
+            tenant_id=principal.tenant_id, import_id=import_id
+        )
+        if item is None:
+            raise HTTPException(status_code=404, detail="baseline import not found")
+        return item
+
     @app.get("/v1/baselines", tags=["baselines"])
     async def baselines(request: Request, principal: CurrentPrincipal) -> list[dict[str, Any]]:
         return await repo(request).list_baselines(tenant_id=principal.tenant_id)
@@ -245,7 +256,11 @@ def create_app(
             resource_type="baseline",
             resource_id=str(baseline_id),
         )
-        return {"status": "active"}
+        return {
+            "status": "active",
+            "baseline_id": str(baseline_id),
+            "baseline_ref": str(baseline_id),
+        }
 
     @app.get("/v1/metric-configs", tags=["configuration"])
     async def metric_configs(request: Request, principal: CurrentPrincipal) -> list[dict[str, Any]]:

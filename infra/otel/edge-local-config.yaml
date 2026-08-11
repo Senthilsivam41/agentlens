@@ -40,3 +40,12 @@ service:
       receivers: [otlp]
       processors: [memory_limiter, redaction, resource/agentlens, batch]
       exporters: [otlp_grpc/platform]
+  telemetry:
+    metrics:
+      level: normal
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 0.0.0.0
+                port: 8888

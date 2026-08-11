@@ -107,6 +107,7 @@ services:
       - "127.0.0.1:${EDGE_OTLP_GRPC_HOST_PORT:-4317}:4317"
       - "127.0.0.1:${EDGE_OTLP_HTTP_HOST_PORT:-4318}:4318"
       - "127.0.0.1:${EDGE_HEALTH_HOST_PORT:-13133}:13133"
+      - "127.0.0.1:${EDGE_METRICS_HOST_PORT:-18889}:8888"
     restart: unless-stopped
 
   edge-queue-init:
@@ -132,6 +133,7 @@ services:
       KAFKA_DLQ_TOPIC: ${KAFKA_DLQ_TOPIC:-agentlens.ingest.dlq.v1}
       AGENTLENS_HMAC_KEY: ${AGENTLENS_HMAC_KEY:?AGENTLENS_HMAC_KEY is required}
       AGENTLENS_TRANSIENT_KEY: ${AGENTLENS_TRANSIENT_KEY:?AGENTLENS_TRANSIENT_KEY is required}
+      SEMANTIC_NORMAL_SAMPLE_RATE: ${SEMANTIC_NORMAL_SAMPLE_RATE:-0.1}
       CLICKHOUSE_HOST: clickhouse
       CLICKHOUSE_PORT: 8123
       CLICKHOUSE_DATABASE: ${CLICKHOUSE_DATABASE:-agentlens}
@@ -163,6 +165,22 @@ services:
       WORKER_MODE: score
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+    restart: unless-stopped
+
+  worker-baseline-import:
+    build:
+      context: ../..
+      dockerfile: services/stream-worker/Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      migrations: {condition: service_completed_successfully}
+    environment:
+      <<: *worker-environment
+      WORKER_MODE: baseline_import
+      AGENTLENS_OBJECT_STORE_HTTP_BASE: ${AGENTLENS_OBJECT_STORE_HTTP_BASE:-}
+      AGENTLENS_BASELINE_IMPORT_POLL_SECONDS: ${AGENTLENS_BASELINE_IMPORT_POLL_SECONDS:-15}
+      AGENTLENS_BASELINE_IMPORT_MIN_RECORDS: ${AGENTLENS_BASELINE_IMPORT_MIN_RECORDS:-500}
     restart: unless-stopped
 
   api:

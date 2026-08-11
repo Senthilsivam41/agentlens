@@ -29,6 +29,7 @@ class AgentLensConfig:
     service_name: str
     otlp_endpoint: str
     insecure: bool = True
+    baseline_ref: str | None = None
 
     @classmethod
     def from_env(
@@ -41,6 +42,7 @@ class AgentLensConfig:
         service_name: str | None = None,
         otlp_endpoint: str | None = None,
         insecure: bool | None = None,
+        baseline_ref: str | None = None,
     ) -> AgentLensConfig:
         resolved_endpoint = _required(
             "otlp_endpoint",
@@ -51,6 +53,9 @@ class AgentLensConfig:
             if insecure is not None
             else os.getenv("OTEL_EXPORTER_OTLP_INSECURE", "true").lower() == "true"
         )
+        resolved_baseline = baseline_ref or os.getenv("AGENTLENS_BASELINE_REF") or None
+        if resolved_baseline is not None:
+            resolved_baseline = _required("baseline_ref", resolved_baseline)
         return cls(
             framework=framework,
             agent_name=_required("agent_name", agent_name),
@@ -64,6 +69,7 @@ class AgentLensConfig:
             ),
             otlp_endpoint=resolved_endpoint,
             insecure=resolved_insecure,
+            baseline_ref=resolved_baseline,
         )
 
 
@@ -83,6 +89,7 @@ def instrument(
     service_name: str | None = None,
     otlp_endpoint: str | None = None,
     insecure: bool | None = None,
+    baseline_ref: str | None = None,
 ) -> TracerProvider:
     """Configure an OTel provider and activate a supported framework instrumentor."""
     config = AgentLensConfig.from_env(
@@ -93,16 +100,18 @@ def instrument(
         service_name=service_name,
         otlp_endpoint=otlp_endpoint,
         insecure=insecure,
+        baseline_ref=baseline_ref,
     )
-    resource = Resource.create(
-        {
-            "service.name": config.service_name,
-            "deployment.environment.name": config.environment,
-            "agentlens.agent.name": config.agent_name,
-            "agentlens.agent.version": config.agent_version,
-            "agentlens.framework": config.framework,
-        }
-    )
+    attributes = {
+        "service.name": config.service_name,
+        "deployment.environment.name": config.environment,
+        "agentlens.agent.name": config.agent_name,
+        "agentlens.agent.version": config.agent_version,
+        "agentlens.framework": config.framework,
+    }
+    if config.baseline_ref:
+        attributes["agentlens.baseline_ref"] = config.baseline_ref
+    resource = Resource.create(attributes)
     provider = TracerProvider(resource=resource)
     exporter = OTLPSpanExporter(endpoint=config.otlp_endpoint, insecure=config.insecure)
     provider.add_span_processor(BatchSpanProcessor(exporter))

@@ -81,3 +81,13 @@ Append-only project completion log. New entries belong at the end.
 - **Validation:** Compared the strategy with Agent Lens architecture and privacy decisions and with the attached AutoClaw rules, state machine, sprint/task schema, console filesystem API, and on-disk orchestration contract. `git diff --check` passed.
 - **Result:** Product positioning, adoption levels, reference architecture, RICE/MoSCoW priorities, delivery phases, metrics, risks, and required decisions are documented. No AutoClaw adapter implementation is claimed.
 - **Related phase:** Product strategy and post-pilot ecosystem expansion.
+
+## 2026-08-11 — Pilot Recovery and Semantic Acceptance Automation
+
+- **Action:** Added a repeatable recovery harness for platform-collector outage buffering, edge disk-queue replay, `earliest` worker restart recovery, duplicate OTLP replay, and ClickHouse execution/span deduplication.
+- **Action:** Added a semantic acceptance harness that builds a deterministic 500-record `text-embedding-3-small` baseline package, imports and activates it through the API, checks repeated score determinism and finding creation, and computes p95 freshness against the 60-second target when an approved credential is supplied.
+- **Action:** Added the Compose baseline-import worker and local edge collector Prometheus queue metrics required by the gates.
+- **Files changed:** `scripts/pilot_recovery.py`, `scripts/semantic_acceptance.py`, `infra/compose/docker-compose.yaml`, `infra/otel/edge-local-config.yaml`, `Makefile`, `docs/pilot-hardening-runbook.md`, plus strict-typing fixes in the identity gateway/worker files.
+- **Validation:** Compose recovery run passed with queue batches `0 → 1`, persistent queue file changed, edge replay `37.989s`, Redpanda outage replay `22.702s`, duplicate replay `24.197s`, `final_executions=1`, and `final_durable_spans=2`. The seeded 500-record/1536-dimension baseline package generated and fitted successfully. Ruff format/lint, strict mypy over 35 source files, Compose config validation, compileall, `git diff --check`, and 31 pytest tests passed. Semantic runner correctly stopped without an `OPENAI_API_KEY`; no credential-backed semantic gate is marked complete.
+- **Result:** Local recovery acceptance is evidenced and repeatable. Semantic acceptance is implemented but remains credential-blocked until an approved embedding key is supplied.
+- **Related phase:** Phase 8 pilot hardening.

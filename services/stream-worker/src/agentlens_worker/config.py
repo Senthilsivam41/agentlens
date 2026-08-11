@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class WorkerSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    worker_mode: Literal["normalize", "assemble", "score"] = "normalize"
+    worker_mode: Literal["normalize", "assemble", "score", "baseline_import"] = "normalize"
     kafka_bootstrap_servers: str = "localhost:9092"
     kafka_raw_topic: str = "agentlens.otlp.traces.v1"
     kafka_span_topic: str = "agentlens.spans.transient.v1"
