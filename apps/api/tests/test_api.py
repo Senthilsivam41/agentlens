@@ -84,6 +84,7 @@ def test_baselines_expose_baseline_ref_and_activation() -> None:
     }
     assert repository.baselines[0]["status"] == "active"
 
+
 def test_finding_update_is_tenant_scoped() -> None:
     client, repository = client_and_repository()
     finding_id = uuid4()

@@ -103,9 +103,7 @@ def process_import(
                     "downloaded package checksum does not match import record"
                 )
             package_dir = extract_package(archive_path, tmp_dir / "unpacked")
-            manifest, artifact = load_and_fit_package(
-                package_dir, minimum_records=minimum_records
-            )
+            manifest, artifact = load_and_fit_package(package_dir, minimum_records=minimum_records)
             if manifest.tenant_id != tenant_id:
                 raise BaselineImportError("manifest tenant_id does not match import tenant")
             storage.insert_baseline(manifest, artifact)

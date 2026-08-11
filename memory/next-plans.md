@@ -1,6 +1,6 @@
 # Next Plans
 
-**Last updated:** 2026-08-01
+**Last updated:** 2026-08-11
 
 Only the current phase may move to `in-progress`. A phase becomes `complete` after its gate passes.
 
@@ -21,8 +21,8 @@ Only the current phase may move to `in-progress`. A phase becomes `complete` aft
 
 ## Immediate Next Work: Phase 8
 
-1. Automate the Kafka `earliest` outage/replay gate and prove deduplication after worker restart.
-2. Exercise an imported fixed baseline with an embedding-provider test credential; prove deterministic semantic score and finding creation under the 60-second p95 target.
+1. Repeat the local recovery harness in the target AKS/EKS environment; the Compose gate is implemented and passed with queue growth, replay, and duplicate-delivery evidence.
+2. Run the semantic acceptance harness with an approved embedding-provider credential; the implementation is present, but the credential-backed deterministic score/finding and p95 <60-second gate remain pending.
 3. Run tenant-isolation and OIDC acceptance against a real identity provider; run collector mTLS certificate rotation and rejection tests.
 4. Run `scripts/pilot_acceptance.py --count 1000 --traces-per-minute 1000` for at least one hour, then a 24-hour soak; tune from measured saturation and latency.
 5. Install or provide Helm in the validation environment and rerun generic, AKS, EKS, and platform chart lints; validate Collector configs and every local Markdown link.

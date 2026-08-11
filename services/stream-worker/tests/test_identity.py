@@ -76,8 +76,7 @@ def test_overwrite_resource_identity_replaces_untrusted_claims() -> None:
     identity = parse_spiffe_uri("spiffe://agentlens/tenant/acme/cluster/prod-a")
     overwrite_resource_identity(request, identity)
     attrs = {
-        item.key: item.value.string_value
-        for item in request.resource_spans[0].resource.attributes
+        item.key: item.value.string_value for item in request.resource_spans[0].resource.attributes
     }
     assert attrs["agentlens.tenant_id"] == "acme"
     assert attrs["agentlens.cluster_id"] == "prod-a"

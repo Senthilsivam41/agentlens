@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from cryptography import x509
 from cryptography.x509.oid import ExtensionOID
@@ -47,11 +47,16 @@ def parse_spiffe_uri(uri: str) -> CollectorIdentity:
 
 def identity_from_certificate(cert: x509.Certificate) -> CollectorIdentity:
     try:
-        san = cert.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME).value
+        san = cast(
+            x509.SubjectAlternativeName,
+            cert.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME).value,
+        )
     except x509.ExtensionNotFound as exc:
         raise IdentityError("client certificate is missing a Subject Alternative Name") from exc
-    uris = [str(uri) for uri in san.get_values_for_type(x509.UniformResourceIdentifier)]
-    for uri in uris:
+    for general_name in san:
+        if not isinstance(general_name, x509.UniformResourceIdentifier):
+            continue
+        uri = str(general_name.value)
         if uri.startswith("spiffe://agentlens/"):
             return parse_spiffe_uri(uri)
     raise IdentityError("client certificate URI SAN does not contain an Agent Lens SPIFFE ID")

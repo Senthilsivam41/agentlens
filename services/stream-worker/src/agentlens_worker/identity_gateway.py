@@ -8,6 +8,7 @@ import os
 import ssl
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import cast
 
 import httpx
 from cryptography import x509
@@ -19,7 +20,7 @@ LOGGER = logging.getLogger("agentlens.identity_gateway")
 
 
 class IdentityGatewayHandler(BaseHTTPRequestHandler):
-    server: IdentityGatewayServer  # type: ignore[assignment]
+    server: IdentityGatewayServer
 
     def log_message(self, format: str, *args: object) -> None:
         LOGGER.info("%s - %s", self.address_string(), format % args)
@@ -67,7 +68,8 @@ class IdentityGatewayServer(ThreadingHTTPServer):
         self.socket = ssl_context.wrap_socket(self.socket, server_side=True)
 
     def peer_certificate(self, handler: BaseHTTPRequestHandler) -> x509.Certificate:
-        cert_binary = handler.connection.getpeercert(binary_form=True)  # type: ignore[attr-defined]
+        connection = cast(ssl.SSLSocket, handler.connection)
+        cert_binary = connection.getpeercert(binary_form=True)
         if not cert_binary:
             raise IdentityError("client certificate required")
         return x509.load_der_x509_certificate(cert_binary)

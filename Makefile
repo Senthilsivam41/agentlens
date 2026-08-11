@@ -1,4 +1,4 @@
-.PHONY: setup lint typecheck test build compose-config compose-up compose-down migrate pilot-acceptance
+.PHONY: setup lint typecheck test build compose-config compose-up compose-down migrate pilot-acceptance pilot-recovery pilot-semantic-acceptance
 
 setup:
 	uv sync --all-packages --group dev
@@ -34,3 +34,9 @@ migrate:
 
 pilot-acceptance:
 	uv run python scripts/pilot_acceptance.py
+
+pilot-recovery:
+	uv run python scripts/pilot_recovery.py
+
+pilot-semantic-acceptance:
+	uv run python scripts/semantic_acceptance.py
