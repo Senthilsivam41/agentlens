@@ -115,6 +115,15 @@ class OtlpNormalizer:
         started_at = datetime.fromtimestamp(span.start_time_unix_nano / 1e9, tz=UTC)
         ended_at = datetime.fromtimestamp(span.end_time_unix_nano / 1e9, tz=UTC)
         framework = _framework(resource.get("agentlens.framework", "generic"))
+        agent_name = str(
+            resource.get(
+                "agentlens.agent.name",
+                resource.get(
+                    "agentlens.agent.id",
+                    resource.get("service.name", "unknown"),
+                ),
+            )
+        )
         return TransientSpan(
             event_id=event_id(
                 tenant_id,
@@ -129,12 +138,7 @@ class OtlpNormalizer:
             cloud_region=str(resource["cloud.region"]) if resource.get("cloud.region") else None,
             environment=str(resource.get("deployment.environment.name", "unknown")),
             service_name=str(resource.get("service.name", "unknown-service")),
-            agent_name=str(
-                resource.get(
-                    "agentlens.agent.name",
-                    resource.get("service.name", "unknown"),
-                )
-            ),
+            agent_name=agent_name,
             agent_version=str(resource.get("agentlens.agent.version", "unknown")),
             framework=framework,
             trace_id=trace_id,

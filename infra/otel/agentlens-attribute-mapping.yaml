@@ -1,0 +1,55 @@
+# AgentLens Tier-2 OTel attribute mapping (ADR-008)
+# Config-driven insert-if-missing rules. Collector transform fragment:
+# infra/otel/processors/agentlens-attribute-mapping.yaml
+version: agentlens.mapping.v1
+description: >
+  Map common OTel / OpenInference / GenAI attributes into the AgentLens
+  OpenInference addendum without inventing a parallel span taxonomy.
+
+resource_insert_if_missing:
+  - target: agentlens.agent.name
+    sources:
+      - agentlens.agent.name
+      - gen_ai.agent.name
+      - service.name
+  - target: agentlens.agent.id
+    sources:
+      - agentlens.agent.id
+      - gen_ai.agent.id
+      - agentlens.agent.name
+      - service.name
+  - target: agentlens.agent.version
+    sources:
+      - agentlens.agent.version
+      - service.version
+    default: unknown
+  - target: agentlens.framework
+    sources:
+      - agentlens.framework
+    default: generic
+  - target: agentlens.baseline_ref
+    sources:
+      - agentlens.baseline_ref
+
+span_insert_if_missing:
+  - target: agentlens.run.id
+    sources:
+      - agentlens.run.id
+      - gen_ai.response.id
+      - session.id
+      - gcp.vertex.agent.session_id
+  - target: tool.name
+    sources:
+      - tool.name
+      - gen_ai.tool.name
+      - openinference.tool.name
+  - target: openinference.tool.name
+    sources:
+      - openinference.tool.name
+      - tool.name
+      - gen_ai.tool.name
+  - target: agentlens.tool.call_id
+    sources:
+      - agentlens.tool.call_id
+      - gen_ai.tool.call.id
+      - tool.call.id

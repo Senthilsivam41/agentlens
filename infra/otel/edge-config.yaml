@@ -43,6 +43,26 @@ processors:
       - key: agentlens.cluster_id
         value: ${env:AGENTLENS_CLUSTER_ID}
         action: upsert
+  # Tier-2 passthrough mapping (ADR-008). Rule intent:
+  # infra/otel/agentlens-attribute-mapping.yaml
+  transform/agentlens_mapping:
+    error_mode: ignore
+    trace_statements:
+      - context: resource
+        statements:
+          - set(attributes["agentlens.agent.name"], attributes["service.name"]) where attributes["agentlens.agent.name"] == nil and attributes["service.name"] != nil
+          - set(attributes["agentlens.agent.name"], attributes["gen_ai.agent.name"]) where attributes["agentlens.agent.name"] == nil and attributes["gen_ai.agent.name"] != nil
+          - set(attributes["agentlens.agent.id"], attributes["agentlens.agent.name"]) where attributes["agentlens.agent.id"] == nil and attributes["agentlens.agent.name"] != nil
+          - set(attributes["agentlens.agent.version"], attributes["service.version"]) where attributes["agentlens.agent.version"] == nil and attributes["service.version"] != nil
+          - set(attributes["agentlens.agent.version"], "unknown") where attributes["agentlens.agent.version"] == nil
+          - set(attributes["agentlens.framework"], "generic") where attributes["agentlens.framework"] == nil
+      - context: span
+        statements:
+          - set(attributes["agentlens.run.id"], attributes["gen_ai.response.id"]) where attributes["agentlens.run.id"] == nil and attributes["gen_ai.response.id"] != nil
+          - set(attributes["agentlens.run.id"], attributes["session.id"]) where attributes["agentlens.run.id"] == nil and attributes["session.id"] != nil
+          - set(attributes["tool.name"], attributes["gen_ai.tool.name"]) where attributes["tool.name"] == nil and attributes["gen_ai.tool.name"] != nil
+          - set(attributes["tool.name"], attributes["openinference.tool.name"]) where attributes["tool.name"] == nil and attributes["openinference.tool.name"] != nil
+          - set(attributes["openinference.tool.name"], attributes["tool.name"]) where attributes["openinference.tool.name"] == nil and attributes["tool.name"] != nil
   batch:
     timeout: 1s
     send_batch_size: 1024
@@ -70,7 +90,7 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, k8sattributes, redaction, resource/agentlens, batch]
+      processors: [memory_limiter, k8sattributes, redaction, resource/agentlens, transform/agentlens_mapping, batch]
       exporters: [otlphttp/platform]
   telemetry:
     metrics:

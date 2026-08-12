@@ -9,5 +9,5 @@ Accepted decisions for Agent Lens. Superseded records remain for auditability.
 - [ADR-005: hash-only durable content](005-hash-only-durable-content.md)
 - [ADR-006: imported baseline governance](006-imported-baseline-governance.md)
 - [ADR-007: adaptive semantic sampling](007-adaptive-semantic-sampling.md)
-- [ADR-008: developer integration & instrumentation](008-developer-integration-instrumentation.md) (Proposed)
+- [ADR-008: developer integration & instrumentation](008-developer-integration-instrumentation.md)
 

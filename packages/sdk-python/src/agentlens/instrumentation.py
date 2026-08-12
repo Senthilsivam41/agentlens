@@ -1,10 +1,9 @@
-"""Configure OTel export and optional framework instrumentation."""
+"""Configure OTel export and optional framework instrumentation (ADR-008)."""
 
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from importlib import import_module
 from typing import Literal
 
 from opentelemetry import trace
@@ -13,11 +12,11 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-FrameworkName = Literal["langgraph", "crewai", "generic"]
+from . import attributes as attrs
+from .adapters import activate
+from .errors import InstrumentationError
 
-
-class InstrumentationError(RuntimeError):
-    """Raised when Agent Lens instrumentation cannot be configured safely."""
+FrameworkName = Literal["langgraph", "langchain", "crewai", "adk", "generic"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +29,7 @@ class AgentLensConfig:
     otlp_endpoint: str
     insecure: bool = True
     baseline_ref: str | None = None
+    agent_id: str | None = None
 
     @classmethod
     def from_env(
@@ -43,6 +43,7 @@ class AgentLensConfig:
         otlp_endpoint: str | None = None,
         insecure: bool | None = None,
         baseline_ref: str | None = None,
+        agent_id: str | None = None,
     ) -> AgentLensConfig:
         resolved_endpoint = _required(
             "otlp_endpoint",
@@ -56,6 +57,7 @@ class AgentLensConfig:
         resolved_baseline = baseline_ref or os.getenv("AGENTLENS_BASELINE_REF") or None
         if resolved_baseline is not None:
             resolved_baseline = _required("baseline_ref", resolved_baseline)
+        resolved_agent_id = agent_id or os.getenv("AGENTLENS_AGENT_ID") or agent_name
         return cls(
             framework=framework,
             agent_name=_required("agent_name", agent_name),
@@ -70,6 +72,7 @@ class AgentLensConfig:
             otlp_endpoint=resolved_endpoint,
             insecure=resolved_insecure,
             baseline_ref=resolved_baseline,
+            agent_id=_required("agent_id", resolved_agent_id),
         )
 
 
@@ -78,6 +81,53 @@ def _required(field: str, value: str) -> str:
     if not cleaned:
         raise InstrumentationError(f"{field} must not be empty")
     return cleaned
+
+
+def init(
+    *,
+    framework: FrameworkName = "generic",
+    agent_name: str,
+    agent_version: str,
+    environment: str | None = None,
+    service_name: str | None = None,
+    otlp_endpoint: str | None = None,
+    insecure: bool | None = None,
+    baseline_ref: str | None = None,
+    agent_id: str | None = None,
+) -> TracerProvider:
+    """Initialize AgentLens OTel export and activate a framework adapter.
+
+    Thin wrapper over the OpenTelemetry SDK. Correctly instrumented OTLP clients
+    may skip this helper entirely (ADR-003 / ADR-008 Tier 2).
+    """
+    config = AgentLensConfig.from_env(
+        framework=framework,
+        agent_name=agent_name,
+        agent_version=agent_version,
+        environment=environment,
+        service_name=service_name,
+        otlp_endpoint=otlp_endpoint,
+        insecure=insecure,
+        baseline_ref=baseline_ref,
+        agent_id=agent_id,
+    )
+    resource_attrs = {
+        "service.name": config.service_name,
+        "deployment.environment.name": config.environment,
+        attrs.AGENT_NAME: config.agent_name,
+        attrs.AGENT_VERSION: config.agent_version,
+        attrs.AGENT_ID: config.agent_id or config.agent_name,
+        attrs.FRAMEWORK: config.framework,
+    }
+    if config.baseline_ref:
+        resource_attrs[attrs.BASELINE_REF] = config.baseline_ref
+    resource = Resource.create(resource_attrs)
+    provider = TracerProvider(resource=resource)
+    exporter = OTLPSpanExporter(endpoint=config.otlp_endpoint, insecure=config.insecure)
+    provider.add_span_processor(BatchSpanProcessor(exporter))
+    trace.set_tracer_provider(provider)
+    activate(config.framework, provider)
+    return provider
 
 
 def instrument(
@@ -90,9 +140,10 @@ def instrument(
     otlp_endpoint: str | None = None,
     insecure: bool | None = None,
     baseline_ref: str | None = None,
+    agent_id: str | None = None,
 ) -> TracerProvider:
-    """Configure an OTel provider and activate a supported framework instrumentor."""
-    config = AgentLensConfig.from_env(
+    """Backward-compatible alias for :func:`init`."""
+    return init(
         framework=framework,
         agent_name=agent_name,
         agent_version=agent_version,
@@ -101,45 +152,5 @@ def instrument(
         otlp_endpoint=otlp_endpoint,
         insecure=insecure,
         baseline_ref=baseline_ref,
+        agent_id=agent_id,
     )
-    attributes = {
-        "service.name": config.service_name,
-        "deployment.environment.name": config.environment,
-        "agentlens.agent.name": config.agent_name,
-        "agentlens.agent.version": config.agent_version,
-        "agentlens.framework": config.framework,
-    }
-    if config.baseline_ref:
-        attributes["agentlens.baseline_ref"] = config.baseline_ref
-    resource = Resource.create(attributes)
-    provider = TracerProvider(resource=resource)
-    exporter = OTLPSpanExporter(endpoint=config.otlp_endpoint, insecure=config.insecure)
-    provider.add_span_processor(BatchSpanProcessor(exporter))
-    trace.set_tracer_provider(provider)
-    _activate_framework(config.framework, provider)
-    return provider
-
-
-def _activate_framework(framework: FrameworkName, provider: TracerProvider) -> None:
-    if framework == "generic":
-        return
-    modules = {
-        "langgraph": (
-            "openinference.instrumentation.langchain",
-            "LangChainInstrumentor",
-            "agentlens[langgraph]",
-        ),
-        "crewai": (
-            "openinference.instrumentation.crewai",
-            "CrewAIInstrumentor",
-            "agentlens[crewai]",
-        ),
-    }
-    module_name, class_name, extra = modules[framework]
-    try:
-        instrumentor_type = getattr(import_module(module_name), class_name)
-    except (ImportError, AttributeError) as exc:
-        raise InstrumentationError(
-            f"{framework} instrumentation is unavailable; install {extra}"
-        ) from exc
-    instrumentor_type().instrument(tracer_provider=provider)
