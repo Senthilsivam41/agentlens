@@ -2,6 +2,8 @@
 
 This runbook turns the Phase 8 completion gate into repeatable acceptance evidence. Phase 8 remains incomplete until local and live-cloud gates pass.
 
+**Alpha operator assumptions:** local Compose defaults to `AGENTLENS_AUTH_MODE=dev` (trusted network). Dashboard `/baselines` is read-only; import/activate via API. See [docs/alpha-scope.md](alpha-scope.md).
+
 ## Local Automated Gate
 
 Start the Compose stack using `.env`, then run:

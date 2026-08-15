@@ -1,4 +1,3 @@
-
 # Agent Lens — Agentic AI Mathematical Drift Observability
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -6,144 +5,165 @@
 [![ClickHouse](https://img.shields.io/badge/ClickHouse-OLAP-brightgreen.svg)](https://clickhouse.com/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg)](https://fastapi.tiangolo.com/)
 
-An enterprise-grade, open-source observability platform for **LangGraph** and **CrewAI** agentic AI workflows. This platform measures non-deterministic agent behavioral drift, tool loop volatility, and context ambiguity using high-dimensional vector linear algebra—**without incurring expensive real-time LLM-as-a-judge API costs**.
+Open-source observability for agent workflows (**LangGraph**, **LangChain**, **CrewAI**, **Google ADK**). Agent Lens measures behavioral drift, tool-loop volatility, and prompt ambiguity with deterministic vector math on OpenTelemetry traces — **without LLM-as-a-judge on the scoring path**.
 
-> **Project status:** architecture and implementation scaffold. The current repository is not yet a complete runnable application; the canonical build plan and production architecture are documented below.
+> **Alpha status (honest scope):** local Compose / single-operator pilot. Default auth is `AGENTLENS_AUTH_MODE=dev` (trusted network). Dashboard baselines page is **read-only**; import and activate baselines via the API. Live AKS/EKS, real OIDC, and load/soak evidence are still Phase 8 gates — see [pilot hardening runbook](docs/pilot-hardening-runbook.md) and [alpha scope](docs/alpha-scope.md).
 
-## Project Blueprint
+## Docs
 
-- [Product and technical architecture](docs/agentlens-architecture.md)
-- [Phased development roadmap and task list](docs/agentlens-development-roadmap.md)
-- [Original architecture draft](agent-drift-dashboard/architecture.md)
+- [Architecture](docs/agentlens-architecture.md)
+- [Development roadmap](docs/agentlens-development-roadmap.md)
+- [ADRs](docs/adr/README.md)
+- [OpenInference attribute addendum](docs/openinference-attribute-addendum.md)
+- [Edge collector identity (ADR-004)](docs/edge-collector-identity.md)
+- [Alpha scope (auth / UI / ops)](docs/alpha-scope.md)
+- [Phase 8 pilot hardening runbook](docs/pilot-hardening-runbook.md)
+- [Product positioning](docs/product-positioning-and-ecosystem-integration.md)
 
-## Project Memory
+## Project memory
 
 - [Memory index](memory/README.md)
-- [Completed actions](memory/completed-actions.md)
 - [Current status](memory/current-status.md)
 - [Next plans](memory/next-plans.md)
+- [Completed actions](memory/completed-actions.md)
 - [Locked decisions](memory/decisions.md)
-- [Phase 8 pilot hardening runbook](docs/pilot-hardening-runbook.md)
-- [Product positioning and ecosystem integration](docs/product-positioning-and-ecosystem-integration.md)
 
 ---
 
-## 🌟 Key Features
+## Features (what ships in alpha)
 
-- **Deterministic Mathematical Drift Detection:** Calculates Mahalanobis Distance ($D_M$), Shannon Context Entropy ($H_{\text{amb}}$), and Trajectory Volatility ($V_{\text{traj}}$) over daily OpenTelemetry traces.
-- **Root Cause Isolation:** Statistically differentiates between vague user prompts (*Context Anomalies*) and actual agent/tool logic failures.
-- **Zero-LLM Evaluation Costs:** Runs asynchronous batch vector matrix math in Python, DuckDB, and ClickHouse at scale.
-- **Interactive Executive Dashboard:** Next.js UI featuring live parameter tuning sliders ($k \cdot \sigma$ sensitivity controls), mathematical formula explainers, and automated prescription cards.
-- **Promptable Text-to-SQL Interface:** Enables non-technical executives to query telemetry data in natural language via FastAPI and Instructor.
+- **Deterministic drift signals:** Mahalanobis distance ($D_M$), context ambiguity ($H_{\text{amb}}$), trajectory volatility ($V_{\text{traj}}$) computed asynchronously off the request path.
+- **Root-cause oriented findings:** Separates prompt ambiguity from agent/tool failure modes when a baseline is active.
+- **OTLP + OpenInference contract:** Edge/platform collectors, redaction, hash-only durable content (ADR-005), Kafka/Redpanda streaming workers.
+- **Imported baseline governance:** Externally curated packages → validate → candidate → activate (ADR-006); client tag `agentlens.baseline_ref`.
+- **Instrumentation front door (ADR-008):** `agentlens.init()` plus thin adapters for LangGraph, LangChain, CrewAI, and ADK; Tier-2 config-driven attribute mapping for plain OTLP.
+- **Investigation API + dashboard:** Executions, scores, findings, metrics summary; baselines listed in the UI.
+
+### Explicitly not in alpha
+
+- Natural-language / Text-to-SQL querying (post-pilot).
+- Webhook / Slack / PagerDuty alerting (ADR-009 candidate).
+- Multi-tenant OIDC as the default local mode (code exists; use `AGENTLENS_AUTH_MODE=oidc` only after configuring issuer/JWKS).
+- Dashboard controls to import or activate baselines (API-only today).
 
 ---
 
-## 🏗️ Architecture & Tech Stack
+## Architecture (alpha path)
 
 ```text
-[ LangGraph / CrewAI Agents ] 
-            │ (OTLP Spans via gRPC :4317)
+[ Agent + agentlens.init() / OTLP ]
+            │ OTLP (edge collector)
             ▼
-[ OpenTelemetry Collector Contrib ] 
-            │ (Native TCP :9000)
+[ Platform collector + identity gateway ]
+            │ Kafka / Redpanda
             ▼
-[ ClickHouse OLAP Data Lake ] ◄───────────┐
-            ▲                            │
-            │ (Batch Analytics)          │ (Text-to-SQL Queries)
-[ DuckDB / SciPy Math Engine ]    [ FastAPI Prompt Engine ]
-                                         ▲
-                                         │ (REST API :8000)
-                              [ Next.js Drift Dashboard ]
+[ Normalize → assemble → score workers ] → ClickHouse
+            │
+            ▼
+[ FastAPI :18000 ] ←→ [ Next.js dashboard :3000 ]
 ```
 
-- **Telemetry Ingestion:** OpenTelemetry Collector (Contrib) with OpenInference semantics.
-- **Data Lake & OLAP Storage:** ClickHouse Database.
-- **Batch Processing:** DuckDB + NumPy / SciPy (asynchronous vector linear algebra).
-- **Backend API:** FastAPI + LangChain / Instructor (Text-to-SQL query engine).
-- **Frontend Dashboard:** Next.js + Tailwind CSS + Recharts + WebSockets.
+- **Ingestion:** OpenTelemetry Collector Contrib + OpenInference semantics.
+- **Store:** ClickHouse (production path); DuckDB is offline/analysis only.
+- **Workers:** Python stream workers (normalize, assemble, score, baseline import).
+- **API:** FastAPI, tenant-scoped routes, RBAC hooks.
+- **UI:** Next.js investigation views.
 
 ---
 
-## 🚀 Quick Start Guide
+## Quick start (local Compose)
 
 ### Prerequisites
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed.
-- Python 3.10+ installed.
-- An OpenAI API Key (required for the Text-to-SQL prompt feature).
+- Docker Desktop (or compatible engine)
+- Python 3.12+ with [uv](https://github.com/astral-sh/uv)
+- Optional: `OPENAI_API_KEY` only if you want **semantic** scoring acceptance (embeddings). Structural path and smoke traces work without it.
 
-### Step 1: Clone Repository & Setup Environment
-
-```bash
-git clone https://github.com/your-org/agentic-drift-dashboard.git
-cd agentic-drift-dashboard
-
-# Create .env file
-echo "OPENAI_API_KEY=sk-proj-your-actual-api-key" > .env
-```
-
-### Step 2: Launch System via Docker Compose
+### 1. Clone and configure
 
 ```bash
-docker compose up -d --build
+git clone https://github.com/Senthilsivam41/agentlens.git
+cd agentlens
+cp .env.example .env
+# Edit .env: set CLICKHOUSE_PASSWORD, AGENTLENS_HMAC_KEY, AGENTLENS_TRANSIENT_KEY.
+# Leave AGENTLENS_AUTH_MODE=dev for local alpha.
 ```
 
-### Step 3: Verify Container Health
-
-| Service | Endpoint | Expected Result |
-| :--- | :--- | :--- |
-| **ClickHouse HTTP** | `http://localhost:8123/ping` | Returns `Ok.` |
-| **OTel Collector** | `http://localhost:13133/` | Returns `{"status":"Server available"}` |
-| **FastAPI Docs** | `http://localhost:8000/docs` | OpenAPI / Swagger Interface |
-| **Next.js Dashboard** | `http://localhost:3000` | Interactive Drift Dashboard |
-
----
-
-## 🐍 Instrumenting LangGraph & CrewAI Agents
-
-To push live trace spans to your local OTel Collector, install the OpenInference packages:
+### 2. Start the stack
 
 ```bash
-pip install opentelemetry-sdk opentelemetry-exporter-otlp openinference-instrumentation-langchain openinference-instrumentation-crewai
+make compose-up
+# or: docker compose --env-file .env -f infra/compose/docker-compose.yaml up -d --build
 ```
 
-Add the following initialization snippet to your python application startup:
+### 3. Smoke-check
+
+| Service | Endpoint | Expected |
+| --- | --- | --- |
+| API ready | `http://localhost:18000/health/ready` | `{"status":"ready"}` |
+| API docs | `http://localhost:18000/docs` | OpenAPI |
+| Dashboard | `http://localhost:3000` | Overview |
+| ClickHouse | `http://localhost:8123/ping` | `Ok.` |
+
+### 4. Instrument an agent
+
+```bash
+pip install 'agentlens[langgraph]'   # or [langchain], [crewai], [adk]
+```
 
 ```python
-import os
-from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from openinference.instrumentation.langchain import LangChainInstrumentor
-from openinference.instrumentation.crewai import CrewAIInstrumentor
+from agentlens import init
 
-# 1. Target local Docker OTel Collector
-tracer_provider = TracerProvider()
-otlp_exporter = OTLPSpanExporter(endpoint="localhost:4317", insecure=True)
-tracer_provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
-trace.set_tracer_provider(tracer_provider)
+init(
+    framework="langgraph",  # langchain | crewai | adk | generic
+    agent_name="research-agent",
+    agent_version="1.0.0",
+    otlp_endpoint="http://localhost:4317",
+    insecure=True,
+)
+```
 
-# 2. Activate Auto-Instrumentation
-LangChainInstrumentor().instrument(tracer_provider=tracer_provider)
-CrewAIInstrumentor().instrument(tracer_provider=tracer_provider)
+See `examples/langgraph`, `examples/langchain`, `examples/crewai`, and `examples/adk`.
+
+### 5. Baseline ops (API-driven in alpha)
+
+```bash
+# Create import (admin) → worker validates → activate candidate
+curl -s -X POST http://localhost:18000/v1/baseline-imports \
+  -H 'content-type: application/json' \
+  -d '{"object_uri":"https://…/package.zip","checksum":"<sha256>"}'
+
+curl -s -X POST "http://localhost:18000/v1/baselines/<baseline_id>/activate"
+```
+
+The dashboard `/baselines` page lists versions only; it does not import or activate.
+
+### 6. Acceptance harnesses
+
+```bash
+make pilot-acceptance          # freshness, concurrency, durable privacy
+make pilot-recovery            # edge/broker outage replay
+OPENAI_API_KEY=… make pilot-semantic-acceptance   # import → activate → score → finding
 ```
 
 ---
 
-## 📊 Mathematical Formulas Reference
+## Mathematical reference
 
-### 1. Trajectory Distance ($D_M$)
+### Trajectory distance ($D_M$)
+
 $$D_M(\mathbf{x}) = \sqrt{(\mathbf{x} - \boldsymbol{\mu}_g)^T \boldsymbol{\Sigma}_g^{-1} (\mathbf{x} - \boldsymbol{\mu}_g)}$$
 
-### 2. Context Entropy ($H_{\text{amb}}$)
+### Context ambiguity ($H_{\text{amb}}$)
+
 $$H_{\text{amb}}(Q) = -\sum_{i=1}^{N} P(x_i) \log_2 P(x_i) + \alpha \cdot \left(1 - \frac{1}{m}\sum_{j=1}^{m} \cos(\mathbf{q}, \mathbf{c}_j)\right)$$
 
-### 3. Trajectory Volatility ($V_{\text{traj}}$)
+### Trajectory volatility ($V_{\text{traj}}$)
+
 $$V_{\text{traj}} = w_s \cdot \left(\frac{N_{\text{steps}}}{\bar{N}}\right)^2 + w_t \cdot \left(\frac{T_{\text{used}}}{\bar{T}}\right) + w_r \cdot \sum_{i=1}^{M} R_i^2$$
 
 ---
 
-## 📜 License
+## License
 
-Distributed under the MIT License. See `LICENSE` for details.
+MIT. See `LICENSE`.
