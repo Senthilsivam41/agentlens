@@ -1,8 +1,8 @@
-from agentlens import instrument
+from agentlens import init
 
 
 def configure_observability() -> None:
-    instrument(
+    init(
         framework="langgraph",
         agent_name="research-agent",
         agent_version="1.0.0",

@@ -1,0 +1,24 @@
+# Include this fragment under `processors:` and add
+# `transform/agentlens_mapping` to the traces pipeline after redaction.
+#
+# Source of truth for rule intent: ../agentlens-attribute-mapping.yaml
+transform/agentlens_mapping:
+  error_mode: ignore
+  trace_statements:
+    - context: resource
+      statements:
+        - set(attributes["agentlens.agent.name"], attributes["service.name"]) where attributes["agentlens.agent.name"] == nil and attributes["service.name"] != nil
+        - set(attributes["agentlens.agent.name"], attributes["gen_ai.agent.name"]) where attributes["agentlens.agent.name"] == nil and attributes["gen_ai.agent.name"] != nil
+        - set(attributes["agentlens.agent.id"], attributes["agentlens.agent.name"]) where attributes["agentlens.agent.id"] == nil and attributes["agentlens.agent.name"] != nil
+        - set(attributes["agentlens.agent.id"], attributes["gen_ai.agent.id"]) where attributes["agentlens.agent.id"] == nil and attributes["gen_ai.agent.id"] != nil
+        - set(attributes["agentlens.agent.version"], attributes["service.version"]) where attributes["agentlens.agent.version"] == nil and attributes["service.version"] != nil
+        - set(attributes["agentlens.agent.version"], "unknown") where attributes["agentlens.agent.version"] == nil
+        - set(attributes["agentlens.framework"], "generic") where attributes["agentlens.framework"] == nil
+    - context: span
+      statements:
+        - set(attributes["agentlens.run.id"], attributes["gen_ai.response.id"]) where attributes["agentlens.run.id"] == nil and attributes["gen_ai.response.id"] != nil
+        - set(attributes["agentlens.run.id"], attributes["session.id"]) where attributes["agentlens.run.id"] == nil and attributes["session.id"] != nil
+        - set(attributes["tool.name"], attributes["gen_ai.tool.name"]) where attributes["tool.name"] == nil and attributes["gen_ai.tool.name"] != nil
+        - set(attributes["tool.name"], attributes["openinference.tool.name"]) where attributes["tool.name"] == nil and attributes["openinference.tool.name"] != nil
+        - set(attributes["openinference.tool.name"], attributes["tool.name"]) where attributes["openinference.tool.name"] == nil and attributes["tool.name"] != nil
+        - set(attributes["agentlens.tool.call_id"], attributes["gen_ai.tool.call.id"]) where attributes["agentlens.tool.call_id"] == nil and attributes["gen_ai.tool.call.id"] != nil

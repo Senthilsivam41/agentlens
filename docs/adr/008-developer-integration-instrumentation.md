@@ -1,7 +1,8 @@
 # ADR-008: Developer Integration & Instrumentation Experience
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-08-05
+**Implemented:** 2026-08-11
 **Deciders:** Sendil Sadasivam (project owner)
 **Related:**
 - [ADR-003](003-otlp-openinference-contract.md) — OTLP transport + OpenInference semantics; this ADR decides *how* adopters get correctly shaped spans into that contract
@@ -88,10 +89,10 @@ This ADR does **not** reopen ADR-003's transport/semantics choice; it only prior
 
 ## Action Items
 
-1. [ ] Define the AgentLens attribute addendum to OpenInference (required attributes: `agent_id`, `run_id`, baseline reference aligned with ADR-006, tool-call metadata) as a standalone schema doc before writing adapter code — do not invent a parallel span taxonomy
-2. [ ] Build the ADK 2.0 adapter first (highest familiarity; reuse Polaris Neuro Guard / dual-llm-router learnings)
-3. [ ] Build LangChain adapter second (largest addressable user base)
-4. [ ] Define Tier 2 OTel collector mapping rules as config-driven (compatible with ADR-004 edge collectors), not hardcoded
-5. [ ] Write `agentlens.init()` manual SDK as a thin OTel wrapper validated against the same OpenInference + AgentLens attribute contract used by adapters
-6. [ ] Cross-check baseline-reference field name/shape against ADR-006 (imported package identity and activated version) before locking the schema doc
-7. [ ] Defer CLI/webhook/replay scope to ADR-009 (candidate)
+1. [x] Define the AgentLens attribute addendum to OpenInference (`docs/openinference-attribute-addendum.md`) — additive attrs including `agentlens.agent.id`, `agentlens.run.id`, `agentlens.baseline_ref`, tool-call metadata
+2. [x] Build the ADK 2.0 adapter (`agentlens.init(framework="adk")` / `agentlens[adk]`)
+3. [x] Build LangChain adapter (`agentlens.init(framework="langchain")` / `agentlens[langchain]`)
+4. [x] Define Tier 2 OTel collector mapping as config-driven (`infra/otel/agentlens-attribute-mapping.yaml` + edge transform processor)
+5. [x] Write `agentlens.init()` manual SDK (+ `agent_run` / `tool_call` helpers); `instrument()` remains a compatibility alias
+6. [x] Cross-check baseline-reference field against ADR-006 — `agentlens.baseline_ref` == `baseline_id` UUID
+7. [x] Defer CLI/webhook/replay scope to ADR-009 (candidate)

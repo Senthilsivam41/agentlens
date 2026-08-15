@@ -12,7 +12,9 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, m
 
 class Framework(StrEnum):
     LANGGRAPH = "langgraph"
+    LANGCHAIN = "langchain"
     CREWAI = "crewai"
+    ADK = "adk"
     GENERIC = "generic"
 
 
