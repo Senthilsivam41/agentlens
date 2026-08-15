@@ -1,6 +1,6 @@
 # Next Plans
 
-**Last updated:** 2026-08-11
+**Last updated:** 2026-08-15
 
 Only the current phase may move to `in-progress`. A phase becomes `complete` after its gate passes.
 
@@ -32,12 +32,11 @@ Only the current phase may move to `in-progress`. A phase becomes `complete` aft
 ## Post-Pilot Candidates
 
 - Canonical orchestration lifecycle semantic contract and AutoClaw file-to-OTLP adapter.
-- Framework integration packs for OpenAI Agents SDK, Microsoft Agent Framework/Semantic Kernel, Google ADK, and AutoGen.
+- Framework integration packs for OpenAI Agents SDK, Microsoft Agent Framework/Semantic Kernel, AutoGen, and **LlamaIndex** (backlog; pull only for a specific pilot need — not alpha-blocking).
 - Constrained Text-to-SQL.
 - Webhook, Slack, and PagerDuty alerts.
 - Human feedback and offline LLM-judge calibration.
 - Restricted encrypted raw-content mode.
 - Automated baseline candidates.
 - Inline cost and retry guardrails.
-- Additional agent frameworks.
 - HA and multi-region deployment.
