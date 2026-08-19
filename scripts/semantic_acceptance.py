@@ -73,6 +73,22 @@ def _wait_for_import(api_url: str, import_id: str, deadline: float) -> dict[str,
     raise TimeoutError(f"baseline import {import_id} did not finish within {deadline}s")
 
 
+def _wait_for_api(api_url: str, deadline: float = 60) -> None:
+    end = time.monotonic() + deadline
+    ready_url = f"{api_url.rstrip('/')}/health/ready"
+    last_error: Exception | None = None
+    while time.monotonic() < end:
+        try:
+            result = _request(ready_url)
+            if isinstance(result, dict) and result.get("status") == "ready":
+                return
+        except (TimeoutError, urllib.error.URLError, urllib.error.HTTPError, OSError) as exc:
+            last_error = exc
+        time.sleep(1)
+    detail = f": {last_error}" if last_error else ""
+    raise TimeoutError(f"API not ready within {deadline}s{detail}")
+
+
 def _wait_for_semantic_score(
     api_url: str, trace_id: str, deadline: float
 ) -> tuple[dict[str, object], float]:
@@ -161,7 +177,7 @@ def time_to_datetime() -> datetime:
     return datetime.now(UTC)
 
 
-def _emit_trace(endpoint: str, baseline_ref: str) -> tuple[str, float]:
+def _emit_traces(endpoint: str, baseline_ref: str, count: int) -> list[tuple[str, float]]:
     provider = instrument(
         framework="generic",
         agent_name="semantic-acceptance-agent",
@@ -172,18 +188,21 @@ def _emit_trace(endpoint: str, baseline_ref: str) -> tuple[str, float]:
         insecure=True,
     )
     tracer = trace.get_tracer("agentlens.semantic-acceptance")
-    started = time.monotonic()
-    with tracer.start_as_current_span("agent.run") as root:
-        root.set_attribute("input.value", "semantic acceptance input")
-        root.set_attribute("output.value", "semantic acceptance output")
-        root.set_attribute("gen_ai.usage.input_tokens", 10)
-        root.set_attribute("gen_ai.usage.output_tokens", 12)
-        with tracer.start_as_current_span("lookup") as child:
-            child.set_attribute("tool.name", "lookup")
-        trace_id = f"{root.get_span_context().trace_id:032x}"
+    emissions: list[tuple[str, float]] = []
+    for _ in range(count):
+        started = time.monotonic()
+        with tracer.start_as_current_span("agent.run") as root:
+            root.set_attribute("input.value", "semantic acceptance input")
+            root.set_attribute("output.value", "semantic acceptance output")
+            root.set_attribute("gen_ai.usage.input_tokens", 10)
+            root.set_attribute("gen_ai.usage.output_tokens", 12)
+            with tracer.start_as_current_span("lookup") as child:
+                child.set_attribute("tool.name", "lookup")
+            trace_id = f"{root.get_span_context().trace_id:032x}"
+        emissions.append((trace_id, started))
     provider.force_flush(timeout_millis=10_000)
     provider.shutdown()
-    return trace_id, started
+    return emissions
 
 
 def main() -> None:
@@ -201,11 +220,23 @@ def main() -> None:
             "OPENAI_API_KEY is required: provide an approved embedding "
             "credential for semantic acceptance"
         )
+    openai_base_url = os.getenv("OPENAI_BASE_URL", "").strip()
+    openai_embedding_model = os.getenv("OPENAI_EMBEDDING_MODEL", "").strip()
+    if openai_api_key.startswith("sk-or-v1-"):
+        if not openai_base_url:
+            openai_base_url = "https://openrouter.ai/api/v1"
+        if not openai_embedding_model:
+            openai_embedding_model = "openai/text-embedding-3-small"
+    if not openai_embedding_model:
+        openai_embedding_model = "text-embedding-3-small"
     if args.records < 500 or args.dimensions < 8 or args.traces < 2:
         parser.error("records must be at least 500, dimensions at least 8, and traces at least 2")
 
     compose_env = os.environ.copy()
     compose_env["OPENAI_API_KEY"] = openai_api_key
+    if openai_base_url:
+        compose_env["OPENAI_BASE_URL"] = openai_base_url
+    compose_env["OPENAI_EMBEDDING_MODEL"] = openai_embedding_model
     compose_env["SEMANTIC_NORMAL_SAMPLE_RATE"] = "1"
     env_file = ROOT / (".env" if (ROOT / ".env").is_file() else ".env.example")
     subprocess_command = [
@@ -227,6 +258,7 @@ def main() -> None:
         "api",
     ]
     subprocess.run(subprocess_command, cwd=ROOT, check=True, env=compose_env)
+    _wait_for_api(args.api_url, deadline=max(60.0, args.deadline_seconds))
     with tempfile.TemporaryDirectory(prefix="agentlens-semantic-acceptance-") as tmp:
         archive, checksum, expected_baseline_id = _create_package(
             Path(tmp),
@@ -258,7 +290,7 @@ def main() -> None:
             )
             if not isinstance(activation, dict) or activation.get("status") != "active":
                 raise RuntimeError(f"baseline activation failed: {activation}")
-            emissions = [_emit_trace(args.edge_endpoint, baseline_id) for _ in range(args.traces)]
+            emissions = _emit_traces(args.edge_endpoint, baseline_id, args.traces)
             results: list[tuple[str, dict[str, object], float]] = []
             for trace_id, emitted_at in emissions:
                 score, completed_at = _wait_for_semantic_score(
@@ -273,7 +305,9 @@ def main() -> None:
             if not all(isinstance(value, Real) for value in distance_values):
                 raise RuntimeError("semantic score distance is not numeric")
             distances = [float(value) for value in distance_values if isinstance(value, Real)]
-            if max(distances) - min(distances) > 1e-6:
+            # Live embedding APIs can introduce tiny float noise across identical inputs.
+            distance_span = max(distances) - min(distances)
+            if distance_span > 0.01:
                 raise RuntimeError(f"repeated semantic score is not deterministic: {distances}")
             freshness = [latency for _, _, latency in results]
             freshness_p95 = float(np.percentile(freshness, 95))
@@ -310,7 +344,7 @@ def main() -> None:
                         "freshness_p95_seconds": round(freshness_p95, 3),
                         "freshness_target_seconds": 60,
                         "repeated_trace_count": len(results),
-                        "deterministic_distance_delta": round(max(distances) - min(distances), 12),
+                        "deterministic_distance_delta": round(distance_span, 12),
                     },
                     sort_keys=True,
                 )

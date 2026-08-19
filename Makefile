@@ -46,4 +46,10 @@ pilot-recovery:
 	uv run python scripts/pilot_recovery.py
 
 pilot-semantic-acceptance:
+	@test -f .env || (echo "Missing .env — copy from .env.example and set OPENAI_API_KEY" && exit 1)
+	@set -a; . ./.env; set +a; \
+	if [ -z "$$OPENAI_API_KEY" ]; then \
+		echo "OPENAI_API_KEY is empty in .env"; \
+		exit 1; \
+	fi; \
 	uv run python scripts/semantic_acceptance.py

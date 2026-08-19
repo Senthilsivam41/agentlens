@@ -28,4 +28,5 @@ class WorkerSettings(BaseSettings):
     clickhouse_username: str = "agentlens"
     clickhouse_password: SecretStr = SecretStr("")
     openai_api_key: SecretStr = SecretStr("")
+    openai_base_url: str | None = None
     openai_embedding_model: str = "text-embedding-3-small"
