@@ -15,14 +15,15 @@ class OpenAIEmbeddingClient:
     ) -> None:
         if not api_key:
             raise ValueError("OpenAI API key is required for semantic scoring")
-        client_kwargs: dict[str, object] = {
-            "api_key": api_key,
-            "max_retries": 3,
-            "timeout": 20,
-        }
         if base_url:
-            client_kwargs["base_url"] = base_url
-        self._client = AsyncOpenAI(**client_kwargs)
+            self._client = AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                max_retries=3,
+                timeout=20,
+            )
+        else:
+            self._client = AsyncOpenAI(api_key=api_key, max_retries=3, timeout=20)
         self._model = model
 
     async def embed(self, values: list[str]) -> list[list[float]]:
