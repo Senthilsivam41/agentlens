@@ -164,6 +164,7 @@ services:
       <<: *worker-environment
       WORKER_MODE: score
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
       OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
     restart: unless-stopped
 

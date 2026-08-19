@@ -173,7 +173,11 @@ async def score(settings: WorkerSettings) -> None:
     transient_key = settings.agentlens_transient_key.get_secret_value()
     api_key = settings.openai_api_key.get_secret_value()
     embedder = (
-        OpenAIEmbeddingClient(api_key=api_key, model=settings.openai_embedding_model)
+        OpenAIEmbeddingClient(
+            api_key=api_key,
+            model=settings.openai_embedding_model,
+            base_url=settings.openai_base_url,
+        )
         if api_key
         else None
     )
@@ -206,19 +210,38 @@ async def score(settings: WorkerSettings) -> None:
                         rationale="semantic embedding provider is not configured",
                     )
                 else:
-                    embeddings = await embedder.embed(
-                        [
-                            candidate.input_text.get_secret_value(),
-                            candidate.output_text.get_secret_value(),
-                        ]
-                    )
-                    result = score_execution(
-                        features=features,
-                        sampling=candidate.sampling,
-                        baseline=baseline,
-                        input_embedding=embeddings[0],
-                        output_embedding=embeddings[1],
-                    )
+                    try:
+                        embeddings = await embedder.embed(
+                            [
+                                candidate.input_text.get_secret_value(),
+                                candidate.output_text.get_secret_value(),
+                            ]
+                        )
+                    except Exception as embed_exc:
+                        # Auth failures are terminal; keep payload out of DLQ.
+                        if type(embed_exc).__name__ in {
+                            "AuthenticationError",
+                            "PermissionDeniedError",
+                        }:
+                            result = unavailable_score(
+                                features=features,
+                                sampling=candidate.sampling,
+                                status=ScoreStatus.EMBEDDING_UNAVAILABLE,
+                                rationale=(
+                                    "semantic embedding provider rejected credentials "
+                                    f"({type(embed_exc).__name__})"
+                                ),
+                            )
+                        else:
+                            raise
+                    else:
+                        result = score_execution(
+                            features=features,
+                            sampling=candidate.sampling,
+                            baseline=baseline,
+                            input_embedding=embeddings[0],
+                            output_embedding=embeddings[1],
+                        )
                 await asyncio.to_thread(storage.insert_score, result)
                 finding = finding_from_score(result)
                 if finding:
