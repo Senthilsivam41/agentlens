@@ -19,6 +19,7 @@ Open-source observability for agent workflows (**LangGraph**, **LangChain**, **C
 - [Alpha scope (auth / UI / ops)](docs/alpha-scope.md)
 - [Phase 8 pilot hardening runbook](docs/pilot-hardening-runbook.md)
 - [Product positioning](docs/product-positioning-and-ecosystem-integration.md)
+- [Deploy on Render](docs/deploy-render.md)
 
 ## Project memory
 
