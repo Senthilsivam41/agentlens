@@ -19,6 +19,10 @@ Only the current phase may move to `in-progress`. A phase becomes `complete` aft
 | 9 | Phase 8 — Pilot hardening | `in-progress` | Phases 0–7 | Security, privacy, recovery, load, freshness, accessibility, and live AKS/EKS gates pass. |
 | 10 | Post-pilot expansion | `not-started` | Successful pilot | Individually approved Text-to-SQL, alerts, feedback, and guardrails ship. |
 
+## Parked (remind until decided)
+
+- **Cheap Render deploy.** User parked this on 2026-09-19. Free-tier Render cannot run the full pipeline (workers / private services / disks are paid). Awaiting a choice: (1) $0 app-only demo with in-memory API, (2) cheapest functional paid Render, (3) keep full-stack `render.yaml`, or (4) cheap VPS + Compose. Do not implement until they pick.
+
 ## Immediate Next Work: Phase 8
 
 1. Run `OPENAI_API_KEY=… make pilot-semantic-acceptance` and record JSON evidence (import → activate → score → finding, p95 &lt; 60s). Alpha docs now state this gate honestly in `docs/alpha-scope.md`.
