@@ -20,6 +20,7 @@ Open-source observability for agent workflows (**LangGraph**, **LangChain**, **C
 - [Live local demo setup](docs/live-demo.md)
 - [Phase 8 pilot hardening runbook](docs/pilot-hardening-runbook.md)
 - [Product positioning](docs/product-positioning-and-ecosystem-integration.md)
+- [Deploy on Render](docs/deploy-render.md)
 
 ## Project memory
 

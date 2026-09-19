@@ -403,7 +403,7 @@ class ClickHouseRepository:
                    countDistinct(e.trace_id) AS executions,
                    countIf(s.is_drifted=true) AS drifted,
                    countIf(s.mahalanobis_distance IS NOT NULL) AS semantic_scored,
-                   avgOrZero(e.trajectory_volatility) AS average_volatility
+                   avgOrDefault(e.trajectory_volatility) AS average_volatility
             FROM executions e FINAL
             LEFT JOIN (
               SELECT tenant_id, trace_id,
