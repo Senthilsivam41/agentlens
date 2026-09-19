@@ -17,6 +17,7 @@ Open-source observability for agent workflows (**LangGraph**, **LangChain**, **C
 - [OpenInference attribute addendum](docs/openinference-attribute-addendum.md)
 - [Edge collector identity (ADR-004)](docs/edge-collector-identity.md)
 - [Alpha scope (auth / UI / ops)](docs/alpha-scope.md)
+- [Live local demo setup](docs/live-demo.md)
 - [Phase 8 pilot hardening runbook](docs/pilot-hardening-runbook.md)
 - [Product positioning](docs/product-positioning-and-ecosystem-integration.md)
 
