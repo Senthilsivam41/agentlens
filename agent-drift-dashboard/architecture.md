@@ -84,6 +84,8 @@ Before finalizing the technical stack, the following key architectural decisions
 
 The platform utilizes a decoupled, layered microservices architecture designed for ultra-high throughput telemetry ingestion and asynchronous analytical processing.
 
+Interactive diagram: [architecture.html](./architecture.html)
+
 ```text
 +---------------------------------------------------------------------------------------------------+
 |                                  AGENTIC AI SYSTEM ARCHITECTURE                                   |

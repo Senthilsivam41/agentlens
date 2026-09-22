@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Agentic AI system architecture",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "output": "agent-drift-dashboard/architecture.html",
+    "viewBox": [1100, 620]
+  },
+  "layout": {
+    "mode": "grid",
+    "cols": 3,
+    "cellW": 200,
+    "cellH": 64,
+    "gapX": 148,
+    "gapY": 80
+  },
+  "components": [
+    {
+      "id": "langgraph",
+      "type": "external",
+      "label": "LangGraph Workflows",
+      "sublabel": "OpenInference",
+      "tag": "agent graphs",
+      "row": 0,
+      "col": 0,
+      "size": [200, 64]
+    },
+    {
+      "id": "crewai",
+      "type": "external",
+      "label": "CrewAI Agents",
+      "sublabel": "OpenInference",
+      "tag": "multi-agent",
+      "row": 0,
+      "col": 2,
+      "size": [200, 64]
+    },
+    {
+      "id": "otel",
+      "type": "security",
+      "label": "OTel Collector Contrib",
+      "sublabel": "batch + redact",
+      "tag": "gRPC :4317",
+      "row": 1,
+      "col": 1,
+      "size": [200, 64]
+    },
+    {
+      "id": "math",
+      "type": "backend",
+      "label": "Nightly batch math",
+      "sublabel": "Python + DuckDB",
+      "tag": "SciPy / NumPy",
+      "row": 2,
+      "col": 0,
+      "size": [200, 64]
+    },
+    {
+      "id": "clickhouse",
+      "type": "database",
+      "label": "ClickHouse",
+      "sublabel": "OLAP data lake",
+      "tag": "spans + drift_metrics",
+      "brand": "clickhouse",
+      "row": 2,
+      "col": 1,
+      "size": [200, 64]
+    },
+    {
+      "id": "fastapi",
+      "type": "backend",
+      "label": "FastAPI Text-to-SQL",
+      "sublabel": "OpenAI / Instructor",
+      "tag": "REST :8000",
+      "brand": "fastapi",
+      "row": 2,
+      "col": 2,
+      "size": [200, 64]
+    },
+    {
+      "id": "dashboard",
+      "type": "frontend",
+      "label": "Next.js drift dashboard",
+      "sublabel": "interactive controls",
+      "brand": "next-js",
+      "row": 3,
+      "col": 2,
+      "size": [200, 64]
+    }
+  ],
+  "connections": [
+    {
+      "from": "langgraph",
+      "to": "otel",
+      "label": "OTLP gRPC :4317",
+      "variant": "emphasis"
+    },
+    {
+      "from": "crewai",
+      "to": "otel",
+      "label": "OTLP gRPC :4317",
+      "variant": "emphasis"
+    },
+    {
+      "from": "otel",
+      "to": "clickhouse",
+      "label": "native TCP :9000",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 24
+    },
+    {
+      "from": "math",
+      "to": "clickhouse",
+      "label": "D_M / H_amb / V_traj"
+    },
+    {
+      "from": "fastapi",
+      "to": "clickhouse",
+      "label": "Text-to-SQL"
+    },
+    {
+      "from": "dashboard",
+      "to": "fastapi",
+      "label": "REST :8000",
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "Ingest",
+      "items": [
+        "LangGraph and CrewAI emit OpenInference spans",
+        "Collector Contrib redacts before the lake"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Score",
+      "items": [
+        "ClickHouse holds otel_agent_spans and drift_metrics",
+        "Nightly DuckDB math; no LLM-as-a-judge on scores"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Investigate",
+      "items": [
+        "Dashboard talks REST :8000, not ClickHouse",
+        "FastAPI translates prompts with Instructor"
+      ]
+    }
+  ]
+}
