@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Agent Lens functional flow",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "output": "docs/agentlens-functional-flow.html",
+    "viewBox": [1080, 620]
+  },
+  "stages": [
+    { "label": "Emit" },
+    { "label": "Collect" },
+    { "label": "Stream" },
+    { "label": "Process" },
+    { "label": "Investigate" }
+  ],
+  "nodes": [
+    {
+      "id": "agent",
+      "type": "external",
+      "label": "Instrumented agent",
+      "sublabel": "agentlens.init()",
+      "tag": "OTLP + OpenInference",
+      "stage": 0,
+      "row": 1
+    },
+    {
+      "id": "collectors",
+      "type": "security",
+      "label": "OTel collectors",
+      "sublabel": "edge → platform",
+      "tag": "redact + identity",
+      "stage": 1,
+      "row": 1
+    },
+    {
+      "id": "redpanda",
+      "type": "messagebus",
+      "label": "Redpanda",
+      "sublabel": "Kafka API",
+      "tag": "otlp.traces.v1",
+      "stage": 2,
+      "row": 1
+    },
+    {
+      "id": "normalize",
+      "type": "backend",
+      "label": "Normalize",
+      "sublabel": "hashed spans",
+      "tag": "worker",
+      "stage": 3,
+      "row": 0
+    },
+    {
+      "id": "assemble",
+      "type": "backend",
+      "label": "Assemble",
+      "sublabel": "one execution",
+      "tag": "worker",
+      "stage": 3,
+      "row": 1
+    },
+    {
+      "id": "score",
+      "type": "backend",
+      "label": "Score",
+      "sublabel": "DM / Hamb / Vtraj",
+      "tag": "async",
+      "stage": 3,
+      "row": 2
+    },
+    {
+      "id": "clickhouse",
+      "type": "database",
+      "label": "ClickHouse",
+      "sublabel": "hash-only durable",
+      "tag": "tenant scoped",
+      "stage": 4,
+      "row": 1
+    },
+    {
+      "id": "serve",
+      "type": "frontend",
+      "label": "API + dashboard",
+      "sublabel": "FastAPI → Next.js",
+      "tag": ":18000 / :3000",
+      "stage": 4,
+      "row": 0
+    }
+  ],
+  "flows": [
+    {
+      "from": "agent",
+      "to": "collectors",
+      "label": "OTLP traces",
+      "variant": "emphasis"
+    },
+    {
+      "from": "collectors",
+      "to": "redpanda",
+      "label": "redacted traces",
+      "variant": "security"
+    },
+    {
+      "from": "redpanda",
+      "to": "normalize",
+      "label": "raw traces",
+      "variant": "emphasis"
+    },
+    {
+      "from": "normalize",
+      "to": "assemble",
+      "label": "spans.transient",
+      "variant": "emphasis",
+      "labelDy": 24
+    },
+    {
+      "from": "assemble",
+      "to": "score",
+      "label": "executions.score",
+      "variant": "emphasis",
+      "labelDy": 24
+    },
+    {
+      "from": "normalize",
+      "to": "clickhouse",
+      "label": "hashed spans"
+    },
+    {
+      "from": "score",
+      "to": "clickhouse",
+      "label": "scores + findings",
+      "variant": "emphasis"
+    },
+    {
+      "from": "clickhouse",
+      "to": "serve",
+      "label": "tenant query",
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "Collect",
+      "items": [
+        "Edge is the only normal ingress",
+        "Redaction and identity happen before the stream"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Process",
+      "items": [
+        "Workers run off the request path",
+        "Deterministic scores; no LLM-as-a-judge"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Investigate",
+      "items": [
+        "ClickHouse is hash-only and tenant scoped",
+        "Dashboard reads the API, not the store"
+      ]
+    }
+  ]
+}
