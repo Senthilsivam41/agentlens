@@ -1,0 +1,301 @@
+# Render Blueprint for Agent Lens.
+#
+# Deploys the full stack directly from this repository:
+#   Public web services : dashboard (Next.js), API (FastAPI), OTLP ingest (edge collector)
+#   Private services    : ClickHouse, Redpanda (Kafka), platform OTel collector, MinIO
+#   Background workers   : normalize, assemble, score, baseline-import stream workers
+#
+# See docs/deploy-render.md for prerequisites, cost notes, and post-deploy steps.
+#
+# Notes on Render specifics:
+#   * Internal hostnames are dynamic (name-xxxx), so every cross-service address is
+#     wired with `fromService` references rather than hardcoded names.
+#   * Private services and disks require a paid Render workspace.
+#   * Render has no cross-service startup ordering; services retry until their
+#     dependencies (ClickHouse/Redpanda) are ready, and Render restarts on failure.
+
+envVarGroups:
+  - name: agentlens-config
+    envVars:
+      - key: AGENTLENS_ENVIRONMENT
+        value: production
+      - key: AGENTLENS_AUTH_MODE
+        value: dev
+      - key: AGENTLENS_DEV_TENANT_ID
+        value: local
+      - key: AGENTLENS_DEV_ROLES
+        value: viewer,analyst,admin
+      - key: AGENTLENS_TENANT_ID
+        value: local
+      - key: AGENTLENS_CLUSTER_ID
+        value: render
+      - key: CLICKHOUSE_DATABASE
+        value: agentlens
+      - key: CLICKHOUSE_USERNAME
+        value: agentlens
+      - key: CLICKHOUSE_PORT
+        value: "8123"
+      - key: KAFKA_RAW_TOPIC
+        value: agentlens.otlp.traces.v1
+      - key: KAFKA_SPAN_TOPIC
+        value: agentlens.spans.transient.v1
+      - key: KAFKA_SCORE_TOPIC
+        value: agentlens.executions.score.v1
+      - key: KAFKA_DLQ_TOPIC
+        value: agentlens.ingest.dlq.v1
+
+  - name: agentlens-secrets
+    envVars:
+      # Shared, generated once and reused by every service that attaches this group.
+      - key: CLICKHOUSE_PASSWORD
+        generateValue: true
+      - key: AGENTLENS_HMAC_KEY
+        generateValue: true
+      - key: AGENTLENS_TRANSIENT_KEY
+        generateValue: true
+
+services:
+  # ----------------------------------------------------------------------------
+  # Data plane (private services)
+  # ----------------------------------------------------------------------------
+  - type: pserv
+    name: agentlens-clickhouse
+    runtime: docker
+    region: oregon
+    plan: standard
+    dockerfilePath: ./infra/render/clickhouse.Dockerfile
+    dockerContext: .
+    autoDeployTrigger: commit
+    envVars:
+      - fromGroup: agentlens-secrets # provides CLICKHOUSE_PASSWORD
+      - key: CLICKHOUSE_DB
+        value: agentlens
+      - key: CLICKHOUSE_USER
+        value: agentlens
+      - key: CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT
+        value: "1"
+    disk:
+      name: clickhouse-data
+      mountPath: /var/lib/clickhouse
+      sizeGB: 10
+
+  - type: pserv
+    name: agentlens-redpanda
+    runtime: docker
+    region: oregon
+    plan: standard
+    dockerfilePath: ./infra/render/redpanda.Dockerfile
+    dockerContext: .
+    autoDeployTrigger: commit
+    disk:
+      name: redpanda-data
+      mountPath: /var/lib/redpanda/data
+      sizeGB: 5
+
+  - type: pserv
+    name: agentlens-otel-platform
+    runtime: docker
+    region: oregon
+    plan: starter
+    dockerfilePath: ./infra/render/otel-platform.Dockerfile
+    dockerContext: .
+    autoDeployTrigger: commit
+    envVars:
+      - fromGroup: agentlens-config # provides KAFKA_RAW_TOPIC
+      - key: REDPANDA_HOST
+        fromService:
+          type: pserv
+          name: agentlens-redpanda
+          property: host
+
+  - type: pserv
+    name: agentlens-minio
+    runtime: image
+    region: oregon
+    plan: starter
+    image:
+      url: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    dockerCommand: server /data --console-address :9001
+    envVars:
+      - key: MINIO_ROOT_USER
+        value: agentlens
+      - key: MINIO_ROOT_PASSWORD
+        generateValue: true
+    disk:
+      name: minio-data
+      mountPath: /data
+      sizeGB: 5
+
+  # ----------------------------------------------------------------------------
+  # Public HTTP services
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: agentlens-api
+    runtime: docker
+    region: oregon
+    plan: starter
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    autoDeployTrigger: commit
+    healthCheckPath: /health/live
+    dockerCommand: sh -c "exec uvicorn agentlens_api.main:app --host 0.0.0.0 --port ${PORT:-10000}"
+    envVars:
+      - fromGroup: agentlens-config
+      - fromGroup: agentlens-secrets # provides CLICKHOUSE_PASSWORD
+      - key: CLICKHOUSE_HOST
+        fromService:
+          type: pserv
+          name: agentlens-clickhouse
+          property: host
+
+  - type: web
+    name: agentlens-web
+    runtime: docker
+    region: oregon
+    plan: starter
+    dockerfilePath: ./apps/web/Dockerfile
+    dockerContext: .
+    autoDeployTrigger: commit
+    healthCheckPath: /
+    # The dashboard fetches the API server-side; wire it to the API's internal
+    # address. Port 10000 always routes to a web service's primary HTTP server.
+    dockerCommand: sh -c "export AGENTLENS_API_URL=http://$AGENTLENS_API_HOST:10000; exec node apps/web/server.js"
+    envVars:
+      - key: HOSTNAME
+        value: 0.0.0.0
+      - key: AGENTLENS_API_HOST
+        fromService:
+          type: web
+          name: agentlens-api
+          property: host
+
+  - type: web
+    name: agentlens-ingest
+    runtime: docker
+    region: oregon
+    plan: starter
+    dockerfilePath: ./infra/render/otel-edge.Dockerfile
+    dockerContext: .
+    autoDeployTrigger: commit
+    envVars:
+      - fromGroup: agentlens-config # provides AGENTLENS_TENANT_ID / AGENTLENS_CLUSTER_ID
+      - key: PLATFORM_HOST
+        fromService:
+          type: pserv
+          name: agentlens-otel-platform
+          property: host
+
+  # ----------------------------------------------------------------------------
+  # Stream workers (background)
+  # ----------------------------------------------------------------------------
+  - type: worker
+    name: agentlens-worker-normalize
+    runtime: docker
+    region: oregon
+    plan: starter
+    dockerfilePath: ./services/stream-worker/Dockerfile
+    dockerContext: .
+    autoDeployTrigger: commit
+    dockerCommand: sh -c "export KAFKA_BOOTSTRAP_SERVERS=$REDPANDA_HOST:9092; exec agentlens-worker"
+    envVars:
+      - fromGroup: agentlens-config
+      - fromGroup: agentlens-secrets
+      - key: WORKER_MODE
+        value: normalize
+      - key: REDPANDA_HOST
+        fromService:
+          type: pserv
+          name: agentlens-redpanda
+          property: host
+      - key: CLICKHOUSE_HOST
+        fromService:
+          type: pserv
+          name: agentlens-clickhouse
+          property: host
+
+  - type: worker
+    name: agentlens-worker-assemble
+    runtime: docker
+    region: oregon
+    plan: starter
+    dockerfilePath: ./services/stream-worker/Dockerfile
+    dockerContext: .
+    autoDeployTrigger: commit
+    dockerCommand: sh -c "export KAFKA_BOOTSTRAP_SERVERS=$REDPANDA_HOST:9092; exec agentlens-worker"
+    envVars:
+      - fromGroup: agentlens-config
+      - fromGroup: agentlens-secrets
+      - key: WORKER_MODE
+        value: assemble
+      - key: REDPANDA_HOST
+        fromService:
+          type: pserv
+          name: agentlens-redpanda
+          property: host
+      - key: CLICKHOUSE_HOST
+        fromService:
+          type: pserv
+          name: agentlens-clickhouse
+          property: host
+
+  - type: worker
+    name: agentlens-worker-score
+    runtime: docker
+    region: oregon
+    plan: starter
+    dockerfilePath: ./services/stream-worker/Dockerfile
+    dockerContext: .
+    autoDeployTrigger: commit
+    dockerCommand: sh -c "export KAFKA_BOOTSTRAP_SERVERS=$REDPANDA_HOST:9092; exec agentlens-worker"
+    envVars:
+      - fromGroup: agentlens-config
+      - fromGroup: agentlens-secrets
+      - key: WORKER_MODE
+        value: score
+      - key: REDPANDA_HOST
+        fromService:
+          type: pserv
+          name: agentlens-redpanda
+          property: host
+      - key: CLICKHOUSE_HOST
+        fromService:
+          type: pserv
+          name: agentlens-clickhouse
+          property: host
+      # Optional: enable semantic scoring by supplying an OpenAI-compatible key
+      # (leave blank to run the structural-only path). For OpenRouter or another
+      # gateway, also add OPENAI_BASE_URL in the Render dashboard.
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_EMBEDDING_MODEL
+        value: text-embedding-3-small
+
+  - type: worker
+    name: agentlens-worker-baseline-import
+    runtime: docker
+    region: oregon
+    plan: starter
+    dockerfilePath: ./services/stream-worker/Dockerfile
+    dockerContext: .
+    autoDeployTrigger: commit
+    dockerCommand: sh -c "export KAFKA_BOOTSTRAP_SERVERS=$REDPANDA_HOST:9092; export AGENTLENS_OBJECT_STORE_HTTP_BASE=http://$MINIO_HOST:9000; exec agentlens-worker"
+    envVars:
+      - fromGroup: agentlens-config
+      - fromGroup: agentlens-secrets
+      - key: WORKER_MODE
+        value: baseline_import
+      - key: REDPANDA_HOST
+        fromService:
+          type: pserv
+          name: agentlens-redpanda
+          property: host
+      - key: CLICKHOUSE_HOST
+        fromService:
+          type: pserv
+          name: agentlens-clickhouse
+          property: host
+      - key: MINIO_HOST
+        fromService:
+          type: pserv
+          name: agentlens-minio
+          property: host

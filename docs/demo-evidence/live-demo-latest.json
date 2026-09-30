@@ -1,0 +1,54 @@
+{
+  "git_branch": "codex/build-agent-lens-architecture",
+  "health": {
+    "api_docs": true,
+    "api_ready": true,
+    "dashboard": true
+  },
+  "mode": "check",
+  "prior_evidence": {
+    "demo_b_talking_points": {
+      "agent_name": "semantic-acceptance-agent",
+      "baseline_id": "85f8d384-fb8f-41ce-9e0c-56b8a21a4ac5",
+      "baseline_records": 500,
+      "embedding_model": "text-embedding-3-small",
+      "rationale": [
+        "trajectory distance 11.131 exceeds baseline threshold",
+        "ambiguity 2.563 exceeds calibrated threshold"
+      ],
+      "root_cause": "user_prompt_ambiguity"
+    },
+    "fallback_smoke": {
+      "agent_name": "pilot-smoke-agent",
+      "dashboard_execution_detail": "http://localhost:3000/executions/4df33c407259493b2eb45374b6edf6e3",
+      "note": "Structural-only path; no embedding key required. Wait ~20s after emit before opening execution detail.",
+      "script": "uv run python scripts/smoke_trace.py",
+      "trace_id": "4df33c407259493b2eb45374b6edf6e3"
+    },
+    "git_branch": "codex/build-agent-lens-architecture",
+    "mode": "full",
+    "recorded_at": "2026-08-29T06:55:48Z",
+    "semantic_acceptance": {
+      "baseline_id": "85f8d384-fb8f-41ce-9e0c-56b8a21a4ac5",
+      "deterministic_distance_delta": 0.001189122593,
+      "finding_count": 5,
+      "freshness_p95_seconds": 21.425,
+      "freshness_target_seconds": 60,
+      "mahalanobis_distance": 11.130608774569332,
+      "repeated_trace_count": 5,
+      "score_status": "complete",
+      "status": "passed",
+      "trace_id": "41d80c850e903e506eb8883f6539ca1b"
+    },
+    "walkthrough": {
+      "api_docs": "http://localhost:18000/docs",
+      "api_findings": "http://localhost:18000/v1/findings?limit=8",
+      "api_summary": "http://localhost:18000/v1/metrics/summary",
+      "dashboard_baselines": "http://localhost:3000/baselines",
+      "dashboard_execution_detail": "http://localhost:3000/executions/41d80c850e903e506eb8883f6539ca1b",
+      "dashboard_executions": "http://localhost:3000/executions",
+      "dashboard_overview": "http://localhost:3000/"
+    }
+  },
+  "recorded_at": "2026-08-29T07:00:21Z"
+}

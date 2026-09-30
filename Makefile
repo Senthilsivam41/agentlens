@@ -1,4 +1,4 @@
-.PHONY: setup lint typecheck test build compose-config compose-up compose-down compose-ps migrate pilot-acceptance pilot-recovery pilot-semantic-acceptance
+.PHONY: setup lint typecheck test build compose-config compose-up compose-down compose-ps migrate pilot-acceptance pilot-recovery pilot-semantic-acceptance live-demo live-demo-smoke live-demo-check
 
 setup:
 	uv sync --all-packages --group dev
@@ -53,3 +53,12 @@ pilot-semantic-acceptance:
 		exit 1; \
 	fi; \
 	uv run python scripts/semantic_acceptance.py
+
+live-demo:
+	uv run python scripts/live_demo.py --mode full
+
+live-demo-smoke:
+	uv run python scripts/live_demo.py --mode structural
+
+live-demo-check:
+	uv run python scripts/live_demo.py --mode check --skip-compose
