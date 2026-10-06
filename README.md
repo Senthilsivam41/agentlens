@@ -129,6 +129,14 @@ init(
 
 See `examples/langgraph`, `examples/langchain`, `examples/crewai`, and `examples/adk`.
 
+To walk a customer through drift, ambiguity, volatility, and tool failure on labeled demo traffic:
+
+```bash
+make demo-drift
+```
+
+That sends traces as `demo-support-agent` in the `demo` environment. Open the filtered executions page printed at the end of the run. Details are in `examples/drift-demo`.
+
 ### 5. Baseline ops (API-driven in alpha)
 
 ```bash
