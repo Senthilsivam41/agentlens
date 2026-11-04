@@ -7,6 +7,14 @@
 **Target Stack:** LangGraph, CrewAI, OpenTelemetry, ClickHouse, DuckDB, FastAPI, Next.js  
 **Execution Pattern:** Asynchronous Data Lake Batch Processing + In-Flight Mathematical Guardrails  
 
+> **Status: Legacy target architecture — not the current alpha implementation.**
+> The active implementation is documented in
+> [`docs/agentlens-architecture.md`](../docs/agentlens-architecture.md),
+> [`README.md`](../README.md), and [`docs/alpha-scope.md`](../docs/alpha-scope.md).
+> The DuckDB/SciPy batch topology, legacy table names, raw-content storage,
+> Text-to-SQL gateway, and live what-if controls below are future alternatives,
+> not shipped components.
+
 ---
 
 ## 1. Architecture Decision Records (ADR)
@@ -54,9 +62,9 @@ Before finalizing the technical stack, the following key architectural decisions
 
 ---
 
-### ADR-004: FastAPI + Instructor Text-to-SQL Prompt Gateway vs. Static Dashboard Queries
+### ADR-004: FastAPI + Instructor Text-to-SQL Prompt Gateway vs. Static Dashboard Queries (Post-pilot proposal)
 
-* **Status:** Accepted
+* **Status:** Proposed / not implemented in alpha
 * **Context:**
   Executive leadership and product owners need ad-hoc insights into agent performance, cost waste, and drift root causes without writing complex ClickHouse SQL queries or navigating intricate PromQL dashboards.
 * **Decision:**
@@ -67,9 +75,9 @@ Before finalizing the technical stack, the following key architectural decisions
 
 ---
 
-### ADR-005: Next.js + Tailwind Dashboard with Live Client-Side Sensitivity Tuning
+### ADR-005: Next.js + Tailwind Dashboard with Live Client-Side Sensitivity Tuning (Post-pilot proposal)
 
-* **Status:** Accepted
+* **Status:** Proposed / not implemented in alpha
 * **Context:**
   Fixed metric thresholds (e.g., $2.5\sigma$) are rarely one-size-fits-all across different agent deployment environments. Users need to tune sensitivity knobs live to understand false positive rates and projected cost waste without waiting for batch re-runs.
 * **Decision:**

@@ -29,7 +29,7 @@ Forces at play:
 
 Adopt a **three-tier instrumentation strategy**, in priority order, all converging on ADR-003's OTLP + OpenInference contract plus a small set of AgentLens-required attributes:
 
-1. **Auto-instrumentation via framework adapters** (primary path) — thin adapter packages for LangChain, LlamaIndex, CrewAI, and ADK 2.0 that wrap agent execution and emit OTel spans conforming to OpenInference + AgentLens required attributes, without manual span code.
+1. **Auto-instrumentation via framework adapters** (primary path) — thin adapter packages for LangChain, CrewAI, and ADK 2.0 that wrap agent execution and emit OTel spans conforming to OpenInference + AgentLens required attributes, without manual span code. LlamaIndex remains a post-pilot backlog adapter.
 2. **OTel collector passthrough** (secondary path) — for teams already emitting OTel traces from custom agents, accept standard OTLP export (including via ADR-004 edge collectors) and map known span attributes into the AgentLens-required set via a defined, config-driven mapping.
 3. **Manual SDK** (fallback path) — `agentlens.init()` + explicit span helpers for anything the adapters don't cover, kept as a thin wrapper over the OTel SDK rather than a parallel API surface. Correctly instrumented OTLP clients still need no AgentLens dependency (ADR-003).
 
@@ -96,3 +96,4 @@ This ADR does **not** reopen ADR-003's transport/semantics choice; it only prior
 5. [x] Write `agentlens.init()` manual SDK (+ `agent_run` / `tool_call` helpers); `instrument()` remains a compatibility alias
 6. [x] Cross-check baseline-reference field against ADR-006 — `agentlens.baseline_ref` == `baseline_id` UUID
 7. [x] Defer CLI/webhook/replay scope to ADR-009 (candidate)
+8. [x] Defer LlamaIndex until a named pilot requires it; no alpha adapter or optional dependency is shipped.

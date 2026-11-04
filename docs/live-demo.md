@@ -126,7 +126,7 @@ curl http://localhost:18000/health/ready
 | Dashboard degraded | `make live-demo-check`; `make compose-ps` |
 | Trace 404 after smoke | Wait ~20s; retry execution URL |
 | Full mode fails on embeddings | Check `OPENAI_API_KEY`; OpenRouter needs `OPENAI_BASE_URL` |
-| Semantic timeout | `make live-demo --skip-compose` after stack is warm |
+| Semantic timeout | `uv run python scripts/live_demo.py --mode full --skip-compose` after stack is warm |
 | Invalid evidence JSON | Re-run `make live-demo` or `make live-demo-smoke` |
 
 ---

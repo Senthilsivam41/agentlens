@@ -1,7 +1,7 @@
 # Agent Lens — Product and Technical Architecture
 
-**Status:** Foundation blueprint  
-**Last updated:** 2026-07-30  
+**Status:** Current alpha architecture (Phase 8 hardening)
+**Last updated:** 2026-11-04
 **Audience:** product, platform, data, and application engineers
 
 ## 1. Product definition
@@ -14,7 +14,8 @@ The first supported sources are LangGraph and CrewAI executions instrumented wit
 
 - Detect behavior that has drifted from a known-good execution population.
 - Distinguish likely ambiguous input from likely agent/tool logic defects.
-- Expose trajectory waste: excess steps, tokens, retries, latency, and cost.
+- Expose trajectory waste: excess steps, tokens, retries, and latency. Cost
+  attribution is a post-pilot contract candidate.
 - Keep raw telemetry in a customer-controlled analytical store.
 - Provide explainable scores; LLM-based judging is optional and never on the critical ingest path.
 
@@ -38,23 +39,27 @@ The first supported sources are LangGraph and CrewAI executions instrumented wit
 
 ```mermaid
 flowchart LR
-  A["Instrumented agent\nLangGraph / CrewAI"] -->|"OTLP spans"| C["OTel Collector"]
-  C -->|"redacted telemetry"| D["ClickHouse raw trace store"]
-  D --> E["Batch analytics\nDuckDB + NumPy/SciPy"]
-  E --> M["Metrics and baseline store"]
+  A["Instrumented agent\nSDK / OpenInference / OTLP"] -->|"OTLP spans"| E["Local edge collector"]
+  E -->|"mTLS OTLP"| G["Platform collector + identity gateway"]
+  G -->|"OTLP protobuf"| K["Redpanda / Kafka"]
+  K --> N["Normalize → assemble → score workers"]
+  N --> D["ClickHouse durable store"]
   D --> B["FastAPI query API"]
-  M --> B
   B --> U["Next.js Agent Lens UI"]
-  B --> N["Alert / webhook integrations"]
 ```
 
 ### Boundary and trust model
 
 1. **Agent boundary:** applications emit trace context and OpenInference attributes. They should not need to know the data model of the dashboard.
-2. **Collection boundary:** the collector is the sole normal ingress. Redaction and payload-size limits happen before persistence.
-3. **Data boundary:** ClickHouse holds immutable raw telemetry and derived facts. It is not exposed directly to browsers.
-4. **Analytics boundary:** scheduled jobs read a bounded time window, produce versioned baselines and metric records, and are idempotent.
-5. **Serving boundary:** FastAPI enforces auth, tenant scope, query limits, and a typed API contract. Text-to-SQL is an optional constrained capability behind this boundary.
+2. **Collection boundary:** the edge/platform collectors are the sole normal
+   ingress. Redaction and identity stamping happen before broker persistence.
+3. **Data boundary:** ClickHouse holds tenant-scoped hash-only durable span
+   metadata and derived facts. It is not exposed directly to browsers. Sampled
+   prompt/output values exist only in encrypted transient scoring candidates.
+4. **Analytics boundary:** long-running stream workers normalize, assemble,
+   score, and persist idempotently; baseline import is a separate worker mode.
+5. **Serving boundary:** FastAPI enforces auth, tenant scope, query limits, and
+   a typed API contract. Text-to-SQL remains post-pilot.
 
 ## 4. Domain model and data contracts
 
@@ -76,16 +81,20 @@ Every trace must contain W3C trace identifiers, timestamp, service name, span na
 
 - `agentlens.tenant_id`, agent name/version, environment, and release identifier.
 - OpenInference-compatible model, tool, input/output, token, and invocation attributes.
-- A bounded `input_hash` and `output_hash`; raw content is opt-in after redaction.
-- Cost currency/rate metadata or the model/provider values from which cost can be calculated.
+- A bounded `input_hash` and `output_hash`; raw content is not durably stored in
+  the alpha path.
+- Model/provider and token attributes when available. Cost currency/rate
+  attribution is a post-pilot contract candidate, not an alpha requirement.
 
-Missing optional attributes must degrade a metric to `unavailable`, never to zero. The API should surface data-quality coverage alongside every score.
+Missing optional attributes must degrade a metric to `unavailable`, never to
+zero. The API reports aggregate data-quality/semantic coverage; a per-score
+coverage field requires a future versioned schema change.
 
 ### Storage layers
 
 | Layer | Store | Retention | Notes |
 | --- | --- | --- | --- |
-| Raw spans | ClickHouse | 30 days initially | Partition by day and tenant; TTL must be tested. |
+| Durable spans | ClickHouse | 30 days initially | Hash-only metadata; partition by day and tenant; TTL must be tested. |
 | Trace rollups | ClickHouse | 90 days initially | One execution-level row for dashboard queries. |
 | Drift metrics/findings | ClickHouse | 13 months initially | Versioned results, not overwritten in place. |
 | Baselines | ClickHouse/object storage | Until superseded + audit period | Serialize model parameters and training cohort metadata. |
@@ -141,15 +150,27 @@ This is a triage signal, not causal proof. The product must display the classifi
 
 ### Telemetry collector
 
-Start with OTLP gRPC/HTTP receivers, memory limiting, batching, resource detection, transform/redaction, and a ClickHouse-compatible exporter. Configure backpressure, retry queues, and a dead-letter/diagnostic path. The collector configuration must be validated against the exact contrib image, because exporter support and table mappings vary by release.
+Use OTLP gRPC/HTTP receivers, memory limiting, batching, resource detection,
+transform/redaction, and retry queues. The platform collector publishes OTLP
+protobuf to the configured Kafka/Redpanda raw topic; workers own normalization
+and ClickHouse persistence. Explicit payload-size enforcement and tenant
+deletion workflows remain Phase 8/post-pilot hardening items.
 
 ### ClickHouse
 
-Use separate raw-span, trace-rollup, metric, baseline, and finding tables. Partition on date and tenant-aware keys; order according to the most frequent filter pattern (`tenant`, `environment`, `service`, time). Store large raw prompts/output payloads separately or encrypted with strict TTL to prevent high-cardinality dashboard scans.
+Use separate durable span, execution, score, baseline, finding, job, and audit
+tables. Partition on date and tenant-aware keys; order according to the most
+frequent filter pattern (`tenant`, `environment`, `service`, time). Durable
+spans contain operational metadata and HMAC hashes, not raw prompt/output
+content.
 
 ### Analytics worker
 
-Implement as a containerized scheduled worker before introducing a workflow orchestrator. It performs: extract window → validate → aggregate trace features → embed (if configured) → baseline selection → score → classify → persist → emit job audit record. A rerun with the same inputs/configuration must be safe.
+Implement as long-running containerized stream workers. The pipeline performs:
+OTLP normalization → transient span assembly → durable span insert → execution
+feature extraction → structural score → adaptive semantic sampling → optional
+encrypted embedding candidate → score/classification persistence. A replay with
+the same event identity must remain idempotent.
 
 ### API
 
@@ -162,10 +183,13 @@ Build around three views: executive overview, investigation, and configuration. 
 ## 7. Security, privacy, and reliability requirements
 
 - Redact secrets and sensitive identifiers before storage; never rely on UI masking as the control.
-- Support configurable raw-content capture (`off`, `redacted`, `restricted`) and hash-only correlation.
+- Keep durable content hash-only. Sampled semantic scoring may use encrypted,
+  short-lived transient candidates; a configurable durable raw-content mode is
+  post-pilot only.
 - Encrypt in transit; use scoped service credentials and role-based access control.
 - Record access and administrative changes in audit logs.
-- Enforce retention through tested TTL policies and provide deletion workflows for tenant data.
+- Enforce retention through tested TTL policies. Tenant deletion workflows and
+  configurable payload-size limits remain explicit Phase 8/post-pilot gates.
 - Define availability and loss semantics: telemetry may be sampled/dropped under overload, and the platform must measure/report drops.
 - Prevent cross-tenant baselines and queries by construction and test this isolation.
 
@@ -174,9 +198,9 @@ Build around three views: executive overview, investigation, and configuration. 
 | ID | Decision | Status |
 | --- | --- | --- |
 | ADR-001 | Asynchronous mathematical evaluation is the default; LLM judging is optional. | Accepted |
-| ADR-002 | ClickHouse stores telemetry; DuckDB/NumPy/SciPy perform batch analysis. | Accepted |
+| ADR-002 | ClickHouse stores telemetry; stream workers perform production analysis and DuckDB is optional offline tooling. | Accepted |
 | ADR-003 | OTel + OpenInference are the framework-neutral instrumentation contract. | Accepted |
-| ADR-004 | FastAPI is the typed API boundary; natural-language query is constrained and later. | Updated from draft |
+| ADR-004 | FastAPI is the typed API boundary; natural-language query is post-pilot. | Updated from draft |
 | ADR-005 | Client-side tuning is simulation only; persisted production thresholds are versioned configs. | Updated from draft |
 
 ## 9. Open decisions to resolve before production
@@ -184,10 +208,15 @@ Build around three views: executive overview, investigation, and configuration. 
 1. Identity and tenancy model: single tenant first or enforced multi-tenant from day one.
 2. Embedding provider/model, data residency, and whether embeddings may leave the customer network.
 3. Baseline approval workflow and the ground-truth labels used to validate classifications.
-4. Trace sampling policy and maximum payload/token limits.
-5. Authentication provider, RBAC roles, and audit retention requirements.
-6. Alert destinations and severity/SLO definitions.
+4. Trace sampling policy, explicit payload-size limits, and tenant deletion workflow.
+5. Cost attribution fields and provider pricing source.
+6. Authentication provider, RBAC roles, and audit retention requirements.
+7. Alert destinations and severity/SLO definitions.
 
 ## 10. Success criteria for an MVP
 
-An MVP is complete when a developer can instrument a sample LangGraph or CrewAI agent, see a redacted trace in Agent Lens, run a repeatable batch job, inspect a versioned drift finding with its score inputs, and use the dashboard to navigate from a trend to the underlying execution. It must do this without an LLM evaluation call on the ingestion or scoring path.
+An MVP is complete when a developer can instrument a sample LangGraph or CrewAI
+agent, see a redacted/hash-only trace in Agent Lens, observe the asynchronous
+stream pipeline produce a versioned drift finding with its score inputs, and
+use the dashboard to navigate from a trend to the underlying execution. It
+must do this without an LLM evaluation call on the ingestion path.

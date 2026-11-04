@@ -91,3 +91,12 @@ Append-only project completion log. New entries belong at the end.
 - **Validation:** Compose recovery run passed with queue batches `0 → 1`, persistent queue file changed, edge replay `37.989s`, Redpanda outage replay `22.702s`, duplicate replay `24.197s`, `final_executions=1`, and `final_durable_spans=2`. The seeded 500-record/1536-dimension baseline package generated and fitted successfully. Ruff format/lint, strict mypy over 35 source files, Compose config validation, compileall, `git diff --check`, and 31 pytest tests passed. Semantic runner correctly stopped without an `OPENAI_API_KEY`; no credential-backed semantic gate is marked complete.
 - **Result:** Local recovery acceptance is evidenced and repeatable. Semantic acceptance is implemented but remains credential-blocked until an approved embedding key is supplied.
 - **Related phase:** Phase 8 pilot hardening.
+
+## 2026-11-04 — Drift Resolution
+
+- **Action:** Resolved the EGM drift findings by aligning the canonical architecture, legacy architecture status, roadmap, ADR-007/008, product positioning, README deployment labels, and live-demo instructions with the implemented alpha.
+- **Action:** Synchronized Tier-2 collector mappings across local, generic edge, Render, and Kubernetes configurations; added regression coverage for Vertex session and tool-call fallbacks.
+- **Files changed:** `README.md`, `agent-drift-dashboard/architecture.md`, `docs/agentlens-architecture.md`, `docs/agentlens-development-roadmap.md`, `docs/adr/007-adaptive-semantic-sampling.md`, `docs/adr/008-developer-integration-instrumentation.md`, `docs/live-demo.md`, `docs/product-positioning-and-ecosystem-integration.md`, `infra/otel/agentlens-attribute-mapping.yaml`, `infra/otel/processors/agentlens-attribute-mapping.yaml`, `infra/otel/edge-local-config.yaml`, `infra/otel/edge-config.yaml`, `infra/render/edge-config.yaml`, `infra/k8s/edge/files/collector.yaml`, `packages/sdk-python/tests/test_instrumentation.py`.
+- **Validation:** `git diff --check`; `UV_CACHE_DIR=/tmp/agentlens-uv-cache uv run pytest -q` (40 passed); PyYAML parsing for all modified collector configurations; Docker Compose configuration rendering.
+- **Result:** Documentation now distinguishes shipped alpha behavior from legacy/post-pilot proposals, and generic OTLP identity/correlation fallbacks are applied consistently across collector paths.
+- **Related phase:** Phase 8 pilot hardening.

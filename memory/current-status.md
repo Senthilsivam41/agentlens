@@ -1,12 +1,12 @@
 # Current Status
 
-**Last updated:** 2026-08-15
+**Last updated:** 2026-11-04
 
-**Active branch:** `codex/build-agent-lens-architecture`
+**Active branch:** `docs/agentlens-functional-flow`
 
-**HEAD:** `3a2d4a1` (`Implement ADR-008 adapter-first instrumentation experience.`)
+**HEAD:** `03d0f13`
 
-**Repository state:** Runnable local alpha / pilot implementation. Phase 8 hardening gates remain (especially credential-backed semantic acceptance and live cloud evidence).
+**Repository state:** Runnable local alpha / pilot implementation with drift-remediation documentation and collector mapping fixes applied. Phase 8 hardening gates remain (especially credential-backed semantic acceptance and live cloud evidence).
 
 ## Delivery Status
 
@@ -26,12 +26,14 @@
 - SDK: `agentlens.init()` with langgraph / langchain / crewai / adk / generic; `instrument()` alias; span helpers; Tier-2 mapping helper.
 - Compose + Helm: present; local recovery harness has passed previously.
 - Docs: README and alpha-scope aligned to remove Text-to-SQL as a shipped headline.
+- Drift remediation: legacy architecture/roadmap/product claims are labelled as historical or post-pilot; collector attribute mappings are synchronized across local, Render, and Kubernetes edge configurations.
 
 ## Latest Runtime Evidence
 
 - Prior local smoke, privacy, concurrency, and recovery harness results remain as recorded historically (see older entries in [completed-actions.md](completed-actions.md)).
 - Credential-backed semantic acceptance: **not yet recorded** on current HEAD in this workspace (`OPENAI_API_KEY` absent when last checked).
 - GitHub issues #3 (ADR-004), #4 (ADR-006), and #5 (ADR-008) closed as implemented (2026-08-15).
+- Drift resolution validation: full local pytest suite passed (40 tests), all modified collector YAML files parsed successfully, and Compose configuration rendered successfully on 2026-11-04.
 
 ## Git State
 
