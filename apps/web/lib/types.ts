@@ -15,6 +15,7 @@ export type Execution = {
   started_at: string;
   data_quality: string;
   trajectory_volatility: number | null;
+  root_cause?: string | null;
   step_count: number;
   total_tokens: number;
 };

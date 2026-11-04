@@ -96,9 +96,20 @@ class MemoryRepository:
         del filters
         scoped = [item for item in self.executions if item["tenant_id"] == tenant_id]
         start = int(cursor or 0)
-        items = scoped[start : start + limit]
+        causes = self._latest_root_causes(tenant_id)
+        items = [
+            {**item, "root_cause": causes.get(item["trace_id"])}
+            for item in scoped[start : start + limit]
+        ]
         next_cursor = str(start + limit) if start + limit < len(scoped) else None
         return items, next_cursor
+
+    def _latest_root_causes(self, tenant_id: str) -> dict[str, str]:
+        causes: dict[str, str] = {}
+        for score in self.execution_scores:
+            if score.get("tenant_id") == tenant_id and score.get("root_cause"):
+                causes[str(score["trace_id"])] = str(score["root_cause"])
+        return causes
 
     async def execution(self, *, tenant_id: str, trace_id: str) -> dict[str, Any] | None:
         return next(
@@ -299,23 +310,30 @@ class ClickHouseRepository:
         self, *, tenant_id: str, limit: int, cursor: str | None, filters: dict[str, Any]
     ) -> tuple[list[dict[str, Any]], str | None]:
         offset = max(0, int(cursor or 0))
-        conditions = ["tenant_id = %(tenant_id)s"]
+        conditions = ["e.tenant_id = %(tenant_id)s"]
         parameters: dict[str, Any] = {"tenant_id": tenant_id, "limit": limit + 1, "offset": offset}
         for name in ("agent_name", "environment", "cluster_id"):
             if filters.get(name):
-                conditions.append(f"{name} = %({name})s")
+                conditions.append(f"e.{name} = %({name})s")
                 parameters[name] = filters[name]
         if filters.get("started_after"):
-            conditions.append("started_at >= %(started_after)s")
+            conditions.append("e.started_at >= %(started_after)s")
             parameters["started_after"] = filters["started_after"]
         if filters.get("started_before"):
-            conditions.append("started_at < %(started_before)s")
+            conditions.append("e.started_at < %(started_before)s")
             parameters["started_before"] = filters["started_before"]
         rows = await self._query(
             f"""
-            SELECT * FROM executions FINAL
+            SELECT e.*, s.root_cause AS root_cause
+            FROM executions AS e FINAL
+            LEFT JOIN (
+              SELECT trace_id, argMax(root_cause, computed_at) AS root_cause
+              FROM execution_scores FINAL
+              WHERE tenant_id = %(tenant_id)s
+              GROUP BY trace_id
+            ) AS s ON e.trace_id = s.trace_id
             WHERE {" AND ".join(conditions)}
-            ORDER BY started_at DESC
+            ORDER BY e.started_at DESC
             LIMIT %(limit)s OFFSET %(offset)s
             """,
             parameters,

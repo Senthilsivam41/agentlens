@@ -1,12 +1,23 @@
 import {notFound} from "next/navigation";
 
+import {ActionBadge} from "@/components/ActionBadge";
 import {api} from "@/lib/api";
-import {label} from "@/lib/presentation";
+import {ambiguityDetail, ambiguityTone, distanceDetail, distanceTone, isDemoIdentity, label, volatilityDetail, volatilityTone} from "@/lib/presentation";
 import type {Execution} from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-type Score = {root_cause: string; rationale: string[]; status: string; mahalanobis_distance?: number; ambiguity_score?: number; trajectory_volatility?: number; baseline_id?: string};
+type Score = {
+  root_cause: string;
+  rationale: string[];
+  status: string;
+  mahalanobis_distance?: number | null;
+  ambiguity_score?: number | null;
+  ambiguity_threshold?: number | null;
+  trajectory_volatility?: number | null;
+  is_drifted?: boolean | null;
+  baseline_id?: string;
+};
 
 export default async function ExecutionDetail({params}: {params: Promise<{traceId: string}>}) {
   const {traceId} = await params;
@@ -21,20 +32,24 @@ export default async function ExecutionDetail({params}: {params: Promise<{traceI
     notFound();
   }
   const score = scores[0];
+  const distance = score ? distanceTone(score.is_drifted, score.mahalanobis_distance) : "neutral";
+  const ambiguity = score ? ambiguityTone(score.ambiguity_score, score.ambiguity_threshold) : "neutral";
+  const volatility = score ? volatilityTone(score.trajectory_volatility) : "neutral";
   return (
     <div className="page-shell">
       <section className="page-heading"><p className="eyebrow">Execution detail</p><h1>{execution.agent_name}</h1><code>{traceId}</code></section>
+      {isDemoIdentity(execution.agent_name, execution.environment) && <div className="notice" role="status">Demo execution from demo-support-agent in the demo environment. Safe to show in a customer walkthrough.</div>}
       <div className="detail-grid">
         <section className="panel"><h2>Trajectory</h2><dl><div><dt>Cluster</dt><dd>{execution.cluster_id}</dd></div><div><dt>Environment</dt><dd>{execution.environment}</dd></div><div><dt>Steps</dt><dd>{execution.step_count}</dd></div><div><dt>Tokens</dt><dd>{execution.total_tokens}</dd></div><div><dt>Data quality</dt><dd>{label(execution.data_quality)}</dd></div></dl></section>
-        <section className="panel"><h2>Classification</h2>{score ? <><span className="badge">{label(score.status)}</span><h3>{label(score.root_cause)}</h3><ul>{score.rationale.map((reason) => <li key={reason}>{reason}</li>)}</ul></> : <p className="empty">Score unavailable.</p>}</section>
+        <section className="panel"><h2>Classification</h2>{score ? <><ActionBadge rootCause={score.root_cause} /> <span className="badge">{label(score.status)}</span><h3>{label(score.root_cause)}</h3><ul>{score.rationale.map((reason) => <li key={reason}>{reason}</li>)}</ul></> : <p className="empty">Score unavailable.</p>}</section>
       </div>
-      {score && <section className="metric-grid"><Metric label="Mahalanobis distance" value={score.mahalanobis_distance}/><Metric label="Input ambiguity" value={score.ambiguity_score}/><Metric label="Trajectory volatility" value={score.trajectory_volatility}/><article className="metric"><p className="eyebrow">Baseline</p><strong className="small-value">{score.baseline_id ?? "Structural only"}</strong><p>Versioned scoring evidence</p></article></section>}
+      {score && <section className="metric-grid"><Metric label="Mahalanobis distance" value={score.mahalanobis_distance} tone={distance} detail={distanceDetail(distance)}/><Metric label="Input ambiguity" value={score.ambiguity_score} tone={ambiguity} detail={ambiguityDetail(ambiguity)}/><Metric label="Trajectory volatility" value={score.trajectory_volatility} tone={volatility} detail={volatilityDetail(volatility)}/><article className="metric"><p className="eyebrow">Baseline</p><strong className="small-value">{score.baseline_id ?? "Structural only"}</strong><p>Versioned scoring evidence</p></article></section>}
       <div className="notice">Prompt and output text are not stored. Investigation uses hashes, structural features, embeddings, and score rationale.</div>
     </div>
   );
 }
 
-function Metric({label: metricLabel, value}: {label: string; value?: number}) {
-  return <article className="metric"><p className="eyebrow">{metricLabel}</p><strong>{value?.toFixed(3) ?? "—"}</strong><p>Computed evidence</p></article>;
+function Metric({label: metricLabel, value, tone, detail}: {label: string; value?: number | null; tone: string; detail: string}) {
+  return <article className={`metric metric-${tone}`}><p className="eyebrow">{metricLabel}</p><strong>{value?.toFixed(3) ?? "—"}</strong><p>{detail}</p></article>;
 }
 

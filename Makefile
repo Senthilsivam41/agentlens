@@ -1,4 +1,4 @@
-.PHONY: setup lint typecheck test build compose-config compose-up compose-down compose-ps migrate pilot-acceptance pilot-recovery pilot-semantic-acceptance live-demo live-demo-smoke live-demo-check
+.PHONY: setup lint typecheck test build compose-config compose-up compose-down compose-ps migrate pilot-acceptance pilot-recovery pilot-semantic-acceptance live-demo live-demo-smoke live-demo-check demo-drift
 
 setup:
 	uv sync --all-packages --group dev
@@ -62,3 +62,21 @@ live-demo-smoke:
 
 live-demo-check:
 	uv run python scripts/live_demo.py --mode check --skip-compose
+
+demo-drift:
+	@test -f .env || (echo "Missing .env — copy from .env.example and set OPENAI_API_KEY" && exit 1)
+	@set -a; . ./.env; set +a; \
+	if [ -z "$$OPENAI_API_KEY" ]; then \
+		echo "OPENAI_API_KEY is empty in .env"; \
+		exit 1; \
+	fi; \
+	case "$$OPENAI_API_KEY" in \
+		sk-or-v1-*) \
+			if [ -z "$$OPENAI_BASE_URL" ]; then export OPENAI_BASE_URL=https://openrouter.ai/api/v1; fi; \
+			if [ -z "$$OPENAI_EMBEDDING_MODEL" ]; then export OPENAI_EMBEDDING_MODEL=openai/text-embedding-3-small; fi; \
+			;; \
+	esac; \
+	if [ -z "$$OPENAI_EMBEDDING_MODEL" ]; then export OPENAI_EMBEDDING_MODEL=text-embedding-3-small; fi; \
+	SEMANTIC_NORMAL_SAMPLE_RATE=1 docker compose --env-file .env -f infra/compose/docker-compose.yaml up -d --build \
+		worker-baseline-import worker-normalize worker-assemble worker-score otel-platform otel-edge api web; \
+	PYTHONPATH=examples/drift-demo uv run python -m drift_demo all

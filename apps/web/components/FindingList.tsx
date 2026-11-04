@@ -1,7 +1,8 @@
 import Link from "next/link";
 
-import type {Finding} from "@/lib/types";
+import {ActionBadge} from "@/components/ActionBadge";
 import {label} from "@/lib/presentation";
+import type {Finding} from "@/lib/types";
 
 export function FindingList({findings}: {findings: Finding[]}) {
   if (!findings.length) return <p className="empty">No active findings in current tenant.</p>;
@@ -10,7 +11,7 @@ export function FindingList({findings}: {findings: Finding[]}) {
       {findings.map((finding) => (
         <li key={finding.finding_id}>
           <div>
-            <span className={`badge severity-${finding.severity}`}>{finding.severity}</span>
+            <ActionBadge rootCause={finding.root_cause} />
             <strong>{finding.title}</strong>
             <p>{label(finding.root_cause)} · {finding.state}</p>
           </div>

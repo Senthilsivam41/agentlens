@@ -35,6 +35,7 @@ pythonpath = [
   "packages/contracts/src",
   "packages/sdk-python/src",
   "services/stream-worker/src",
+  "examples/drift-demo",
 ]
 asyncio_mode = "auto"
 filterwarnings = [
