@@ -37,13 +37,19 @@ processors:
         statements:
           - set(attributes["agentlens.agent.name"], attributes["service.name"]) where attributes["agentlens.agent.name"] == nil and attributes["service.name"] != nil
           - set(attributes["agentlens.agent.id"], attributes["agentlens.agent.name"]) where attributes["agentlens.agent.id"] == nil and attributes["agentlens.agent.name"] != nil
+          - set(attributes["agentlens.agent.id"], attributes["gen_ai.agent.id"]) where attributes["agentlens.agent.id"] == nil and attributes["gen_ai.agent.id"] != nil
+          - set(attributes["agentlens.agent.id"], attributes["service.name"]) where attributes["agentlens.agent.id"] == nil and attributes["service.name"] != nil
           - set(attributes["agentlens.agent.version"], "unknown") where attributes["agentlens.agent.version"] == nil
           - set(attributes["agentlens.framework"], "generic") where attributes["agentlens.framework"] == nil
       - context: span
         statements:
           - set(attributes["agentlens.run.id"], attributes["gen_ai.response.id"]) where attributes["agentlens.run.id"] == nil and attributes["gen_ai.response.id"] != nil
+          - set(attributes["agentlens.run.id"], attributes["session.id"]) where attributes["agentlens.run.id"] == nil and attributes["session.id"] != nil
+          - set(attributes["agentlens.run.id"], attributes["gcp.vertex.agent.session_id"]) where attributes["agentlens.run.id"] == nil and attributes["gcp.vertex.agent.session_id"] != nil
           - set(attributes["tool.name"], attributes["gen_ai.tool.name"]) where attributes["tool.name"] == nil and attributes["gen_ai.tool.name"] != nil
           - set(attributes["openinference.tool.name"], attributes["tool.name"]) where attributes["openinference.tool.name"] == nil and attributes["tool.name"] != nil
+          - set(attributes["agentlens.tool.call_id"], attributes["gen_ai.tool.call.id"]) where attributes["agentlens.tool.call_id"] == nil and attributes["gen_ai.tool.call.id"] != nil
+          - set(attributes["agentlens.tool.call_id"], attributes["tool.call.id"]) where attributes["agentlens.tool.call_id"] == nil and attributes["tool.call.id"] != nil
   batch: {timeout: 1s, send_batch_size: 1024}
 exporters:
   otlphttp/platform:

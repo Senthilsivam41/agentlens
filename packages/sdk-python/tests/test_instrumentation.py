@@ -100,12 +100,17 @@ def test_tier2_resource_and_span_mapping() -> None:
     assert resource["agentlens.framework"] == "generic"
 
     span = apply_span_mapping(
-        {"gen_ai.tool.name": "search", "gen_ai.response.id": "run-1"},
+        {
+            "gen_ai.tool.name": "search",
+            "gcp.vertex.agent.session_id": "run-1",
+            "tool.call.id": "call-1",
+        },
         mapping,
     )
     assert span["tool.name"] == "search"
     assert span["openinference.tool.name"] == "search"
     assert span["agentlens.run.id"] == "run-1"
+    assert span["agentlens.tool.call_id"] == "call-1"
 
 
 def test_manual_span_helpers_emit_addendum_attributes(monkeypatch: pytest.MonkeyPatch) -> None:

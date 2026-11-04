@@ -1,6 +1,8 @@
 # Agent Lens Product Positioning and Ecosystem Integration
 
-**Status:** Proposed product strategy and integration blueprint  
+**Status:** Proposed product strategy and integration blueprint; runtime OTLP
+paths are implemented, orchestration-plane and broader framework adapters are
+post-pilot proposals.
 **Last updated:** 2026-08-01  
 **Design partner:** agent-synthetix / AutoClaw  
 **Audience:** product, platform, agent-framework, SRE, security, and application teams
@@ -9,7 +11,13 @@
 
 Agent Lens is the framework-neutral behavior assurance layer for production AI agents.
 
-It converts standard agent telemetry and orchestration events into explainable evidence about execution quality, behavioral drift, coordination failure, resource waste, and operational risk. Agent Lens does not replace an agent framework, multi-agent orchestrator, control plane, or general-purpose APM. It plugs into those systems through OpenTelemetry and OpenInference and gives their operators a shared way to answer:
+It converts standard agent telemetry—and, when an optional lifecycle adapter is
+implemented, orchestration events—into explainable evidence about execution
+quality, behavioral drift, coordination failure, resource waste, and
+operational risk. Agent Lens does not replace an agent framework, multi-agent
+orchestrator, control plane, or general-purpose APM. It plugs into those
+systems through OpenTelemetry and OpenInference and gives their operators a
+shared way to answer:
 
 > Did the agent fleet behave as intended, what changed, and where should a human intervene?
 
@@ -27,7 +35,13 @@ It converts standard agent telemetry and orchestration events into explainable e
 
 ### Strategic wedge
 
-Start with multi-agent engineering systems where failures are expensive, state crosses several agents, and conventional request-level monitoring cannot explain the outcome. Use agent-synthetix as the first reference integration, then generalize the same contracts to LangGraph, CrewAI, OpenAI Agents SDK, Microsoft Agent Framework/Semantic Kernel, Google ADK, AutoGen, and custom orchestrators.
+Start with multi-agent engineering systems where failures are expensive, state
+crosses several agents, and conventional request-level monitoring cannot
+explain the outcome. Use agent-synthetix as a proposed reference integration,
+while the current alpha ships LangGraph, LangChain, CrewAI, Google ADK, and
+generic OTLP paths. Generalization to OpenAI Agents SDK, Microsoft Agent
+Framework/Semantic Kernel, AutoGen, and file-native control planes is
+post-pilot.
 
 ## 2. Problem and Jobs-to-be-Done
 
@@ -56,7 +70,7 @@ For engineering organizations operating production AI agents across frameworks, 
 
 1. **Framework-neutral by contract** — OTLP and OpenInference are the primary interface; SDKs are optional adapters.
 2. **Behavior, not only infrastructure** — measures tool paths, retries, handoffs, ambiguity, volatility, and baseline distance.
-3. **Multi-agent correlation** — joins runtime spans with assignment, heartbeat, review, consensus, and outcome events.
+3. **Multi-agent correlation (post-pilot)** — will join runtime spans with assignment, heartbeat, review, consensus, and outcome events when a lifecycle adapter is enabled.
 4. **Deterministic first** — mathematical scoring is reproducible and asynchronous; LLM judging remains optional.
 5. **Privacy by architecture** — raw prompt/output content is not durably required; hashes and short-lived encrypted candidates support correlation and scoring.
 6. **Customer-controlled operations** — self-hosted Compose/Kubernetes deployment with AKS, EKS, and generic Kubernetes support.
@@ -72,6 +86,8 @@ For engineering organizations operating production AI agents across frameworks, 
 ## 4. Product Architecture: Two Complementary Signal Planes
 
 Agent Lens should treat every integration as two optional, composable planes.
+The runtime telemetry plane is shipped in alpha; the orchestration telemetry
+plane requires a future lifecycle adapter.
 
 ```mermaid
 flowchart LR
@@ -88,7 +104,7 @@ flowchart LR
 
   A1 -->|"OTLP / OpenInference runtime spans"| E["Local OTel edge collector"]
   A2 -->|"OTLP / OpenInference runtime spans"| E
-  O -->|"Lifecycle event adapter"| E
+  O -.->|"Planned lifecycle event adapter"| E
   E -->|"mTLS OTLP"| L["Agent Lens shared backend"]
   L --> D["Execution, coordination, drift, findings"]
 ```
@@ -104,7 +120,7 @@ Captures the work performed by agents:
 - inputs/outputs under the configured privacy mode;
 - parent/child trace relationships.
 
-### Orchestration telemetry plane
+### Orchestration telemetry plane (post-pilot adapter)
 
 Captures why and how work moved through the fleet:
 
@@ -127,7 +143,9 @@ This means Agent Lens should not require AutoClaw to become a long-running appli
 
 ### Recommended integration pattern
 
-Build a small **AutoClaw-to-OTLP bridge** as an optional companion, not a dependency of AutoClaw core.
+**Post-pilot proposal — not implemented in the current repository:** build a
+small **AutoClaw-to-OTLP bridge** as an optional companion, not a dependency of
+AutoClaw core.
 
 The bridge tails only allowlisted runtime files, converts state transitions into OpenTelemetry spans/events, maintains a local watermark for idempotency, and exports through the same local edge collector used by runtime agents.
 
@@ -189,7 +207,7 @@ Spawned agent processes inherit `OTEL_EXPORTER_OTLP_ENDPOINT`, resource attribut
 
 The bridge must never export file bodies, prompts, context packs, source code, review prose, or inbox payloads by default. It exports state, timestamps, bounded identifiers, counts, verdicts, durations, and HMACs of content when correlation is necessary. This aligns AutoClaw’s local-first contract with Agent Lens’s hash-only durable policy.
 
-### AutoClaw-specific dashboards and findings
+### AutoClaw-specific dashboards and findings (post-pilot proposal)
 
 - Fleet throughput: verified tasks completed per week.
 - Human repair rate after agent completion.
@@ -230,17 +248,17 @@ Every ecosystem should be useful at L0/L1. L3/L4 are enhancements, not prerequis
 
 ### Ecosystem matrix
 
-| Ecosystem | Primary plug-in path | Additional value |
-| --- | --- | --- |
-| LangGraph / LangChain | OpenInference or OTel instrumentation → edge collector | Graph-node paths, state transitions, tool loops, release drift |
-| CrewAI | OpenInference CrewAI instrumentation → edge collector | Crew/task/agent hierarchy, delegation, retry and role efficiency |
-| OpenAI Agents SDK | OTel-compatible instrumentation or Agent Lens wrapper | Agent handoffs, tool calls, guardrails, session correlation |
-| Microsoft Agent Framework / Semantic Kernel | Native OTel activities, logs, and metrics | Function invocation loops, plugin/tool behavior, Azure deployment segments |
-| Google ADK | OTel adapter/collector export | Agent/workflow/model/tool correlation across Google Cloud deployments |
-| AutoGen | Framework instrumentation plus conversation/team adapter | Speaker transitions, group-chat loops, termination quality |
-| Custom Python/TypeScript orchestrators | Standard OTel SDK plus documented lifecycle attributes | Full portability without adopting an Agent Lens SDK |
-| Kubernetes-hosted agent services | OTel Operator/sidecar or daemon collector | Cluster, namespace, workload, release, and cloud correlation |
-| File-native control planes such as AutoClaw | File/event bridge → local collector | Coordination and evidence without introducing a required server |
+| Ecosystem | Status | Primary plug-in path | Additional value |
+| --- | --- | --- | --- |
+| LangGraph / LangChain | Shipped | OpenInference or OTel instrumentation → edge collector | Graph-node paths, state transitions, tool loops, release drift |
+| CrewAI | Shipped | OpenInference CrewAI instrumentation → edge collector | Crew/task/agent hierarchy, delegation, retry and role efficiency |
+| OpenAI Agents SDK | Planned | OTel-compatible instrumentation or Agent Lens wrapper | Agent handoffs, tool calls, guardrails, session correlation |
+| Microsoft Agent Framework / Semantic Kernel | Planned | Native OTel activities, logs, and metrics | Function invocation loops, plugin/tool behavior, Azure deployment segments |
+| Google ADK | Shipped | OTel adapter/collector export | Agent/workflow/model/tool correlation across Google Cloud deployments |
+| AutoGen | Planned | Framework instrumentation plus conversation/team adapter | Speaker transitions, group-chat loops, termination quality |
+| Custom Python/TypeScript orchestrators | Shipped via generic OTLP | Standard OTel SDK plus documented lifecycle attributes | Full portability without adopting an Agent Lens SDK |
+| Kubernetes-hosted agent services | Packaged/configured | OTel Operator/sidecar or daemon collector | Cluster, namespace, workload, release, and cloud correlation |
+| File-native control planes such as AutoClaw | Planned | File/event bridge → local collector | Coordination and evidence without introducing a required server |
 
 ## 7. Packaging and Adoption
 
@@ -248,9 +266,9 @@ Every ecosystem should be useful at L0/L1. L3/L4 are enhancements, not prerequis
 
 1. **Agent Lens Core** — ingestion, storage, deterministic scoring, APIs, dashboard, auth, and tenancy.
 2. **Edge Collector Pack** — generic Kubernetes, AKS, EKS, and local Compose configurations.
-3. **Instrumentation Packs** — LangGraph, CrewAI, OpenAI Agents, Semantic Kernel, ADK, AutoGen, and generic OTel guidance.
-4. **Control-plane Adapters** — AutoClaw first; later event adapters for other orchestration systems.
-5. **Dashboard Presets** — runtime reliability, fleet coordination, drift, privacy, and executive outcome views.
+3. **Instrumentation Packs** — shipped LangGraph, LangChain, CrewAI, ADK, and generic OTel guidance; broader framework packs are planned.
+4. **Control-plane Adapters** — AutoClaw and lifecycle adapters are post-pilot proposals.
+5. **Dashboard Presets** — runtime reliability is shipped; fleet coordination and outcome presets are post-pilot proposals.
 
 ### Adoption promise
 
@@ -321,7 +339,7 @@ Scores are directional until discovery supplies real reach and effort data.
 - Produce conformance fixtures for every lifecycle state.
 - Gate: the same journey reconstructs deterministically from replayed events.
 
-### Phase B — AutoClaw design-partner integration
+### Phase B — AutoClaw design-partner integration (post-pilot; not implemented)
 
 - Implement the optional file-to-OTLP bridge.
 - Add trace-context fields to assignment/context records where appropriate.

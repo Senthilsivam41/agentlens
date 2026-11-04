@@ -50,7 +50,12 @@ Open-source observability for agent workflows (**LangGraph**, **LangChain**, **C
 
 ---
 
-## Architecture (alpha path)
+## Architecture (platform/Kubernetes alpha path)
+
+> The diagram below shows the shared platform deployment path, including the
+> mTLS identity gateway. Local Compose is a development-only exception: it
+> uses an insecure edge-to-platform path without that gateway. See
+> [the edge identity contract](docs/edge-collector-identity.md).
 
 ```text
 [ Agent + agentlens.init() / OTLP ]
