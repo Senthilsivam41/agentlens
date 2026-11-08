@@ -16,6 +16,12 @@ IDENTITY_SOURCE = "agentlens.identity_source"
 RUN_ID = "agentlens.run.id"
 TOOL_NAME = "tool.name"
 TOOL_CALL_ID = "agentlens.tool.call_id"
+TOOL_PROTOCOL = "agentlens.tool.protocol"
+TOOL_TRANSPORT = "agentlens.tool.transport"
+TOOL_MANUAL = "agentlens.tool.manual"
+TOOL_RESULT_TYPE = "agentlens.tool.result_type"
+TOOL_RESULT_SIZE = "agentlens.tool.result_size"
+OPENINFERENCE_SPAN_KIND = "openinference.span.kind"
 
 # OpenInference / GenAI aliases commonly seen on the wire
 OPENINFERENCE_TOOL_NAME = "openinference.tool.name"

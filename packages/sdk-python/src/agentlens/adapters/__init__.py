@@ -60,6 +60,17 @@ def activate_generic(_provider: TracerProvider) -> None:
     return None
 
 
+def activate_utcp(provider: TracerProvider) -> None:
+    """Register the UTCP post-processor type. Requires the ``utcp`` extra."""
+    try:
+        from .utcp import activate_utcp as register_utcp
+    except ImportError as exc:
+        raise InstrumentationError(
+            "utcp instrumentation is unavailable; install agentlens[utcp]"
+        ) from exc
+    register_utcp(provider)
+
+
 ACTIVATORS = {
     "langgraph": activate_langgraph,
     "langchain": activate_langchain,
@@ -68,12 +79,23 @@ ACTIVATORS = {
     "generic": activate_generic,
 }
 
+TOOL_PROTOCOL_ACTIVATORS = {
+    "utcp": activate_utcp,
+}
+
 
 def activate(framework: str, provider: TracerProvider) -> None:
     try:
         ACTIVATORS[framework](provider)
     except KeyError as exc:
         raise InstrumentationError(f"unsupported framework: {framework}") from exc
+
+
+def activate_tool_protocol(protocol: str, provider: TracerProvider) -> None:
+    try:
+        TOOL_PROTOCOL_ACTIVATORS[protocol](provider)
+    except KeyError as exc:
+        raise InstrumentationError(f"unsupported tool protocol: {protocol}") from exc
 
 
 def _openinference_instrument(

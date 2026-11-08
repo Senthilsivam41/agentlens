@@ -14,13 +14,18 @@ langgraph = ["openinference-instrumentation-langchain>=0.1.54,<1"]
 langchain = ["openinference-instrumentation-langchain>=0.1.54,<1"]
 crewai = ["openinference-instrumentation-crewai>=0.1.13,<1"]
 adk = ["google-adk>=1.17,<3"]
+utcp = ["utcp>=1.2,<2"]
 mapping = ["pyyaml>=6,<7"]
 all = [
   "openinference-instrumentation-langchain>=0.1.54,<1",
   "openinference-instrumentation-crewai>=0.1.13,<1",
   "google-adk>=1.17,<3",
+  "utcp>=1.2,<2",
   "pyyaml>=6,<7",
 ]
+
+[project.entry-points."utcp.plugins"]
+agentlens = "agentlens.adapters.utcp:register"
 
 [build-system]
 requires = ["hatchling>=1.27"]

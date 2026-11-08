@@ -24,6 +24,11 @@ Do **not** invent a parallel span taxonomy. Tier-1 adapters, Tier-2 collector ma
 | `tool.name` | string | OpenInference / GenAI / Tier-2 mapping | Preferred tool name key for normalizer |
 | `openinference.tool.name` | string | OpenInference | Alias accepted by ingestion |
 | `agentlens.tool.call_id` | string | SDK / adapter | Optional per-call identifier |
+| `agentlens.tool.protocol` | string | UTCP adapter | `utcp` when the tool call was traced by the UTCP post-processor |
+| `agentlens.tool.transport` | string | UTCP adapter | UTCP `call_template_type` (`http`, `cli`, `mcp`, ...) |
+| `agentlens.tool.manual` | string | UTCP adapter | Manual prefix of `tool.name` (`billing` in `billing.refund`) |
+| `agentlens.tool.result_type` | string | UTCP adapter | Python type name of the result. Not the result body |
+| `agentlens.tool.result_size` | int | UTCP adapter | Length of `str` or `bytes` results only |
 
 ## Baseline reference ([ADR-006](adr/006-imported-baseline-governance.md) / ADR-008)
 
@@ -43,6 +48,8 @@ Activation continues to switch the baseline used by **new** scoring jobs only.
 Adapters and `agentlens.init()` must not encourage durable raw prompt/output retention.
 ADK adapter defaults `ADK_CAPTURE_MESSAGE_CONTENT_IN_SPANS=false` and
 `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=NO_CONTENT`.
+The UTCP adapter records result type and, for text, length. It does not record
+the result body or tool arguments.
 
 ## Tier-2 mapping
 

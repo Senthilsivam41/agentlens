@@ -14,6 +14,7 @@ dev = [
   "pytest-cov>=6.2,<7",
   "ruff>=0.12,<1",
   "types-PyYAML>=6,<7",
+  "utcp>=1.2,<2",
 ]
 
 [tool.uv.workspace]
@@ -61,5 +62,5 @@ mypy_path = [
 ]
 
 [[tool.mypy.overrides]]
-module = ["aiokafka.*", "clickhouse_connect.*", "pyarrow.*", "google", "google.*"]
+module = ["aiokafka.*", "clickhouse_connect.*", "pyarrow.*", "google", "google.*", "utcp", "utcp.*"]
 ignore_missing_imports = true

@@ -20,3 +20,5 @@ build/
 .vscode/
 data/
 examples/drift-demo/.cache/
+graphify-out/*
+.cursor/*

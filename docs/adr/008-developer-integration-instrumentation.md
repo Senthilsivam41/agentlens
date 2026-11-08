@@ -3,6 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-08-05
 **Implemented:** 2026-08-11
+**Amended:** 2026-11-08 — UTCP tool-protocol add-on
 **Deciders:** Sendil Sadasivam (project owner)
 **Related:**
 - [ADR-003](003-otlp-openinference-contract.md) — OTLP transport + OpenInference semantics; this ADR decides *how* adopters get correctly shaped spans into that contract
@@ -29,7 +30,7 @@ Forces at play:
 
 Adopt a **three-tier instrumentation strategy**, in priority order, all converging on ADR-003's OTLP + OpenInference contract plus a small set of AgentLens-required attributes:
 
-1. **Auto-instrumentation via framework adapters** (primary path) — thin adapter packages for LangChain, CrewAI, and ADK 2.0 that wrap agent execution and emit OTel spans conforming to OpenInference + AgentLens required attributes, without manual span code. LlamaIndex remains a post-pilot backlog adapter.
+1. **Auto-instrumentation via framework adapters** (primary path) — thin adapter packages for LangChain, CrewAI, and ADK 2.0 that wrap agent execution and emit OTel spans conforming to OpenInference + AgentLens required attributes, without manual span code. LlamaIndex remains a post-pilot backlog adapter. UTCP is not another framework value. It is a tool-protocol add-on: `init(..., tool_protocols=("utcp",))` registers a `ToolPostProcessor` on top of whichever framework adapter is active, including `generic`, so tool calls that never go through MCP still emit OpenInference tool spans. See [examples/utcp](../../examples/utcp/README.md).
 2. **OTel collector passthrough** (secondary path) — for teams already emitting OTel traces from custom agents, accept standard OTLP export (including via ADR-004 edge collectors) and map known span attributes into the AgentLens-required set via a defined, config-driven mapping.
 3. **Manual SDK** (fallback path) — `agentlens.init()` + explicit span helpers for anything the adapters don't cover, kept as a thin wrapper over the OTel SDK rather than a parallel API surface. Correctly instrumented OTLP clients still need no AgentLens dependency (ADR-003).
 
@@ -83,6 +84,7 @@ This ADR does **not** reopen ADR-003's transport/semantics choice; it only prior
 - **Easier:** New adopters get traces flowing in minutes via an adapter; drift formulas get consistently shaped OpenInference + AgentLens-attribute data regardless of tier.
 - **Harder:** Adapter surface area grows with each supported framework; version compatibility testing becomes an ongoing CI concern.
 - **Constrained by ADR-005:** Adapters and the manual SDK must document and default to hash/redaction-safe emission paths; they must not become a backdoor for durable raw content.
+- **UTCP hook limits (verified against `utcp` 1.2.0):** `UtcpClientImplementation.call_tool` runs `post_process` only after the protocol call returns. The adapter therefore traces successful calls only. It does not see protocol errors, unknown tools, or disallowed transports, so those calls cannot become `tool_runtime_failure`. The processor has no start timestamp (duration is near zero), never receives `tool_args`, and on `call_tool_streaming` runs once per chunk. Revisit by wrapping `call_tool` if error spans become required.
 - **Dependent on ADR-006:** Baseline tagging requires a stable client-visible baseline reference (imported package / activated version identity). Field name and shape are confirmed against ADR-006 before adapters ship — not invented independently here.
 - **To revisit:** If OpenInference coverage gaps force AgentLens-specific span names beyond additive attributes, document those extensions in the semantic-convention doc and note divergence from ADR-003's "OpenInference supplies semantics" stance.
 - **Deferred, not decided here:** CLI (`agentlens trace tail`, `agentlens drift check`), webhook/alerting integrations, and trace-replay UX — scope in a follow-up ADR (ADR-009 candidate) once Tier 1 adapters exist.
@@ -97,3 +99,4 @@ This ADR does **not** reopen ADR-003's transport/semantics choice; it only prior
 6. [x] Cross-check baseline-reference field against ADR-006 — `agentlens.baseline_ref` == `baseline_id` UUID
 7. [x] Defer CLI/webhook/replay scope to ADR-009 (candidate)
 8. [x] Defer LlamaIndex until a named pilot requires it; no alpha adapter or optional dependency is shipped.
+9. [x] UTCP post-processor adapter (`agentlens[utcp]`)
