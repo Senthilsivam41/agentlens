@@ -13,10 +13,11 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 from . import attributes as attrs
-from .adapters import activate
+from .adapters import activate, activate_tool_protocol
 from .errors import InstrumentationError
 
 FrameworkName = Literal["langgraph", "langchain", "crewai", "adk", "generic"]
+ToolProtocolName = Literal["utcp"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +31,7 @@ class AgentLensConfig:
     insecure: bool = True
     baseline_ref: str | None = None
     agent_id: str | None = None
+    tool_protocols: tuple[ToolProtocolName, ...] = ()
 
     @classmethod
     def from_env(
@@ -44,6 +46,7 @@ class AgentLensConfig:
         insecure: bool | None = None,
         baseline_ref: str | None = None,
         agent_id: str | None = None,
+        tool_protocols: tuple[ToolProtocolName, ...] = (),
     ) -> AgentLensConfig:
         resolved_endpoint = _required(
             "otlp_endpoint",
@@ -73,6 +76,7 @@ class AgentLensConfig:
             insecure=resolved_insecure,
             baseline_ref=resolved_baseline,
             agent_id=_required("agent_id", resolved_agent_id),
+            tool_protocols=tool_protocols,
         )
 
 
@@ -86,6 +90,7 @@ def _required(field: str, value: str) -> str:
 def init(
     *,
     framework: FrameworkName = "generic",
+    tool_protocols: tuple[ToolProtocolName, ...] = (),
     agent_name: str,
     agent_version: str,
     environment: str | None = None,
@@ -110,6 +115,7 @@ def init(
         insecure=insecure,
         baseline_ref=baseline_ref,
         agent_id=agent_id,
+        tool_protocols=tool_protocols,
     )
     resource_attrs = {
         "service.name": config.service_name,
@@ -127,12 +133,15 @@ def init(
     provider.add_span_processor(BatchSpanProcessor(exporter))
     trace.set_tracer_provider(provider)
     activate(config.framework, provider)
+    for protocol in config.tool_protocols:
+        activate_tool_protocol(protocol, provider)
     return provider
 
 
 def instrument(
     *,
     framework: FrameworkName,
+    tool_protocols: tuple[ToolProtocolName, ...] = (),
     agent_name: str,
     agent_version: str,
     environment: str | None = None,
@@ -153,4 +162,5 @@ def instrument(
         insecure=insecure,
         baseline_ref=baseline_ref,
         agent_id=agent_id,
+        tool_protocols=tool_protocols,
     )

@@ -132,7 +132,7 @@ init(
 )
 ```
 
-See `examples/langgraph`, `examples/langchain`, `examples/crewai`, and `examples/adk`.
+See `examples/langgraph`, `examples/langchain`, `examples/crewai`, `examples/adk`, and `examples/utcp`.
 
 To walk a customer through drift, ambiguity, volatility, and tool failure on labeled demo traffic:
 
