@@ -22,3 +22,4 @@ data/
 examples/drift-demo/.cache/
 graphify-out/*
 .cursor/*
+.agents/*
