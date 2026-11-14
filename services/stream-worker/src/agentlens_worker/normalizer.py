@@ -136,7 +136,12 @@ class OtlpNormalizer:
             cluster_id=cluster_id,
             cloud_provider=_cloud_provider(resource.get("cloud.provider", "unknown")),
             cloud_region=str(resource["cloud.region"]) if resource.get("cloud.region") else None,
-            environment=str(resource.get("deployment.environment.name", "unknown")),
+            environment=str(
+                resource.get(
+                    "deployment.environment.name",
+                    resource.get("deployment.environment", "unknown"),
+                )
+            ),
             service_name=str(resource.get("service.name", "unknown-service")),
             agent_name=agent_name,
             agent_version=str(resource.get("agentlens.agent.version", "unknown")),

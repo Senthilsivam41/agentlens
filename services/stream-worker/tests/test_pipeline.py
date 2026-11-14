@@ -1,8 +1,9 @@
 import json
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from agentlens_contracts import Framework, SamplingReason, SpanStatus, TransientSpan
-from agentlens_worker import AdaptiveSampler, TraceAssembler, extract_features
+from agentlens_worker import AdaptiveSampler, OtlpNormalizer, TraceAssembler, extract_features
 from agentlens_worker.durable import durable_attributes, to_durable
 from agentlens_worker.redaction import redact_text
 from agentlens_worker.serialization import transient_span_from_bytes, transient_span_to_bytes
@@ -12,6 +13,40 @@ from agentlens_worker.transient import (
     decrypt_candidate,
     encrypt_candidate,
 )
+from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import ExportTraceServiceRequest
+from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
+
+
+@pytest.mark.parametrize(
+    ("environment_attributes", "expected"),
+    [
+        ({"deployment.environment": "development"}, "development"),
+        ({"deployment.environment.name": "staging"}, "staging"),
+        (
+            {"deployment.environment.name": "production", "deployment.environment": "legacy"},
+            "production",
+        ),
+        ({}, "unknown"),
+    ],
+)
+def test_otlp_environment_reaches_execution_features(
+    environment_attributes: dict[str, str], expected: str
+) -> None:
+    request = ExportTraceServiceRequest()
+    resource_spans = request.resource_spans.add()
+    attributes = {
+        "agentlens.tenant_id": "tenant-a",
+        "agentlens.cluster_id": "cluster-a",
+        **environment_attributes,
+    }
+    resource_spans.resource.attributes.extend(
+        KeyValue(key=key, value=AnyValue(string_value=value)) for key, value in attributes.items()
+    )
+    resource_spans.scope_spans.add().spans.add(trace_id=b"a" * 16, span_id=b"b" * 8)
+
+    normalized = OtlpNormalizer().normalize(request.SerializeToString())
+
+    assert extract_features(normalized, hmac_key=b"test-key").environment == expected
 
 
 def span(**updates: object) -> TransientSpan:
