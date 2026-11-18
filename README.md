@@ -6,6 +6,8 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg)](https://fastapi.tiangolo.com/)
 
 Open-source observability for agent workflows (**LangGraph**, **LangChain**, **CrewAI**, **Google ADK**). Agent Lens measures behavioral drift, tool-loop volatility, and prompt ambiguity with deterministic vector math on OpenTelemetry traces — **without LLM-as-a-judge on the scoring path**.
+**Dashboard:** [agents.labbys-aoai.in](https://agents.labbys-aoai.in) (deployment in progress).
+
 
 > **Alpha status (honest scope):** local Compose / single-operator pilot. Default auth is `AGENTLENS_AUTH_MODE=dev` (trusted network). Dashboard baselines page is **read-only**; import and activate baselines via the API. Live AKS/EKS, real OIDC, and load/soak evidence are still Phase 8 gates — see [pilot hardening runbook](docs/pilot-hardening-runbook.md) and [alpha scope](docs/alpha-scope.md).
 
